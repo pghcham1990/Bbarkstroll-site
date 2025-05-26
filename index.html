@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
+/* =============== base =============== */
 *{box-sizing:border-box;margin:0;padding:0}
 body{
   font-family:"Nunito",Arial,Helvetica,sans-serif;
@@ -15,7 +16,7 @@ body{
   display:flex; flex-direction:column; min-height:100vh;
 }
 h1,h2{font-weight:700; letter-spacing:-.02em;}
-h1{font-size:clamp(1.8rem,6vw,2.6rem); margin-bottom:.25em;}
+h1{font-size:clamp(1.8rem,6vw,2.6rem); margin-bottom:.35em;}
 h2{font-size:1.4rem; margin:.75em 0 .5em;}
 p{margin:.5em 0;}
 a{color:#14804a; text-decoration:none;}
@@ -29,20 +30,24 @@ button.cta{
 button.cta:hover{background:#0f6236;}
 .wrapper{width:min(92%,700px); margin-inline:auto; padding:2rem 0;}
 section{margin-top:2.5rem;}
+
+/* =============== new HERO =============== */
 .hero{
-  position:relative; overflow:hidden;
-  background:url('https://placehold.co/1000x500?text=Bark+%26+Stroll') center/cover no-repeat;
-  padding:6rem 1rem 6rem; border-radius:12px; text-align:center;
+  position:relative; text-align:center; color:#fff;
+  padding:6rem 1rem 6rem; border-radius:12px;
+  background:#14804a;
+  /* subtle paw-print pattern */
+  background-image:
+      radial-gradient(rgba(255,255,255,.08) 15%, transparent 16%),
+      radial-gradient(rgba(255,255,255,.06) 15%, transparent 16%);
+  background-size:60px 60px;
+  background-position:0 0, 30px 30px;
 }
-.hero::before{          /* translucent veil for better contrast */
-  content:""; position:absolute; inset:0;
-  background:rgba(0,0,0,.35);   /* 35 % black */
-}
-.hero h1{
-  position:relative;   /* keep headline above veil */
-  color:#fff;
-  text-shadow:0 2px 4px rgba(0,0,0,.5);
-}
+.hero h1{text-shadow:0 2px 6px rgba(0,0,0,.35);}
+.hero p{max-width:32ch;margin-inline:auto;color:rgba(255,255,255,.9);}
+@media(min-width:600px){ .hero{padding:7rem 2rem;} }
+
+/* =============== services & misc =============== */
 .services article{
   background:#fff; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem;
   box-shadow:0 2px 6px rgba(0,0,0,.05);
@@ -50,7 +55,6 @@ section{margin-top:2.5rem;}
 footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padding:1.5rem 0;}
 @media(min-width:600px){
   .services-grid{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
-  .hero{padding:7rem 2rem;}
 }
 </style>
 </head>
@@ -58,14 +62,14 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
 <body>
 <div class="wrapper">
 
+  <!-- HERO  ---------------------------------------------------------->
   <header class="hero">
     <h1>Welcome to <br>Bark &amp; Stroll&nbsp;LLC</h1>
-    <p style="max-width:32ch;margin-inline:auto">
-      Professional dog walking &amp; pet-care services for Bridgeville and nearby areas.
-    </p>
+    <p>Professional dog walking &amp; pet-care services for Bridgeville and nearby areas.</p>
     <a href="tel:14129921480"><button class="cta">Call / Text&nbsp;412-992-1480</button></a>
   </header>
 
+  <!-- SERVICES ------------------------------------------------------->
   <section class="services">
     <h2>Our&nbsp;Services</h2>
     <div class="services-grid">
@@ -76,12 +80,14 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
     </div>
   </section>
 
+  <!-- GET STARTED ---------------------------------------------------->
   <section>
     <h2>Ready to Get Started?</h2>
     <p>Call or text <a href="tel:14129921480">412-992-1480</a> for your
        <strong>free in-person consultation</strong>. We’ll learn about your pet and set up the perfect care routine.</p>
   </section>
 
+  <!-- PAYMENTS ------------------------------------------------------->
   <section>
     <h2>Payments &amp; Peace of Mind</h2>
     <p>Tap-to-pay powered by Square—cards, Apple Pay, Google Pay all welcome.
@@ -89,6 +95,7 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
     <p>Bark &amp; Stroll is a fully registered <strong>LLC</strong>, insured, and committed to reliable service.</p>
   </section>
 
+  <!-- CONTACT -------------------------------------------------------->
   <section>
     <h2>Contact &amp; Social</h2>
     <p>Email: <a href="mailto:info@barkstroll.com">info@barkstroll.com</a><br>

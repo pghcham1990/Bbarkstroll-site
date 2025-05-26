@@ -8,7 +8,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
-/* =============== base =============== */
 *{box-sizing:border-box;margin:0;padding:0}
 body{
   font-family:"Nunito",Arial,Helvetica,sans-serif;
@@ -16,7 +15,7 @@ body{
   display:flex; flex-direction:column; min-height:100vh;
 }
 h1,h2{font-weight:700; letter-spacing:-.02em;}
-h1{font-size:clamp(1.8rem,6vw,2.6rem); margin-bottom:.35em;}
+h1{font-size:clamp(1.8rem,6vw,2.6rem); margin-bottom:.25em;}
 h2{font-size:1.4rem; margin:.75em 0 .5em;}
 p{margin:.5em 0;}
 a{color:#14804a; text-decoration:none;}
@@ -30,36 +29,33 @@ button.cta{
 button.cta:hover{background:#0f6236;}
 .wrapper{width:min(92%,700px); margin-inline:auto; padding:2rem 0;}
 section{margin-top:2.5rem;}
-
-/* =============== HERO =============== */
 .hero{
-  position:relative; text-align:center; color:#fff;
-  padding:6rem 1rem 6rem; border-radius:12px;
-  background:#14804a;
-  background-image:
-      radial-gradient(rgba(255,255,255,.08) 15%, transparent 16%),
-      radial-gradient(rgba(255,255,255,.06) 15%, transparent 16%);
-  background-size:60px 60px;
-  background-position:0 0, 30px 30px;
+  background:
+    radial-gradient(rgba(255,255,255,.08) 12%, transparent 13%) 0 0/5rem 5rem,
+    #14804a;                       /* base green */
+  padding:6rem 1rem 6rem; border-radius:12px; text-align:center; color:#fff;
 }
-.hero h1{text-shadow:0 2px 6px rgba(0,0,0,.35);}
-.hero p{max-width:32ch;margin-inline:auto;color:rgba(255,255,255,.9);}
-@media(min-width:600px){ .hero{padding:7rem 2rem;} }
-
-/* --- NEW: compact hero for very small screens --- */
-@media (max-height:430px){
-  .hero{padding:4rem 1rem 4rem;}
-  .hero h1{font-size:clamp(1.6rem,5.5vw,2.2rem);}
-}
-
-/* =============== services & misc =============== */
+.hero h1{color:#fff;}
 .services article{
   background:#fff; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem;
   box-shadow:0 2px 6px rgba(0,0,0,.05);
 }
 footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padding:1.5rem 0;}
+
 @media(min-width:600px){
   .services-grid{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
+  .hero{padding:7rem 2rem;}
+}
+
+/* ==== compact-height tweaks (≤ 430 px tall, e.g. small phones) ==== */
+@media (max-height:430px){
+  .hero{padding:3.5rem 1rem 3.5rem;}      /* shorter banner */
+  section.services{margin-top:1.5rem;}    /* tighter gap */
+
+  .services-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:1rem;
+  }
+  .services article{margin:0;}            /* remove extra bottom space */
 }
 </style>
 </head>
@@ -67,14 +63,14 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
 <body>
 <div class="wrapper">
 
-  <!-- HERO ----------------------------------------------------------->
   <header class="hero">
     <h1>Welcome to <br>Bark &amp; Stroll&nbsp;LLC</h1>
-    <p>Professional dog walking &amp; pet-care services for Bridgeville and nearby areas.</p>
+    <p style="max-width:32ch;margin-inline:auto">
+      Professional dog walking &amp; pet-care services for Bridgeville and nearby areas.
+    </p>
     <a href="tel:14129921480"><button class="cta">Call / Text&nbsp;412-992-1480</button></a>
   </header>
 
-  <!-- SERVICES ------------------------------------------------------->
   <section class="services">
     <h2>Our&nbsp;Services</h2>
     <div class="services-grid">
@@ -85,30 +81,27 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
     </div>
   </section>
 
-  <!-- GET STARTED ---------------------------------------------------->
   <section>
     <h2>Ready to Get Started?</h2>
     <p>Call or text <a href="tel:14129921480">412-992-1480</a> for your
        <strong>free in-person consultation</strong>. We’ll learn about your pet and set up the perfect care routine.</p>
   </section>
 
-  <!-- PAYMENTS ------------------------------------------------------->
   <section>
     <h2>Payments &amp; Peace of Mind</h2>
-    <p>Tap-to-pay powered by Square—cards, Apple&nbsp;Pay, Google&nbsp;Pay all welcome.
+    <p>Tap-to-pay powered by Square—cards, Apple Pay, Google Pay all welcome.
        Instant digital receipts and automated reminders keep everything simple.</p>
     <p>Bark &amp; Stroll is a fully registered <strong>LLC</strong>, insured, and committed to reliable service.</p>
   </section>
 
-  <!-- CONTACT -------------------------------------------------------->
   <section>
     <h2>Contact &amp; Social</h2>
     <p>Email: <a href="mailto:info@barkstroll.com">info@barkstroll.com</a><br>
        Phone / Text: <a href="tel:14129921480">412-992-1480</a><br>
        Facebook: <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/"
-         target="_blank" rel="noopener">Bridgeville&nbsp;Bark&nbsp;&amp;&nbsp;Stroll</a><br>
-       Google&nbsp;Maps&nbsp;|&nbsp;Reviews: <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7?g_st=ic"
-         target="_blank" rel="noopener">Open in Maps</a>
+                    target="_blank" rel="noopener">Bridgeville Bark &amp; Stroll</a><br>
+       Google Maps | Reviews: <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7?g_st=ic"
+                    target="_blank" rel="noopener">Open in Maps</a>
     </p>
   </section>
 
@@ -118,6 +111,8 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
   © <span id="year"></span> Bark &amp; Stroll LLC &nbsp;|&nbsp; Bridgeville, PA
 </footer>
 
-<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+</script>
 </body>
 </html>

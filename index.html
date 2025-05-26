@@ -31,12 +31,11 @@ button.cta:hover{background:#0f6236;}
 .wrapper{width:min(92%,700px); margin-inline:auto; padding:2rem 0;}
 section{margin-top:2.5rem;}
 
-/* =============== new HERO =============== */
+/* =============== HERO =============== */
 .hero{
   position:relative; text-align:center; color:#fff;
   padding:6rem 1rem 6rem; border-radius:12px;
   background:#14804a;
-  /* subtle paw-print pattern */
   background-image:
       radial-gradient(rgba(255,255,255,.08) 15%, transparent 16%),
       radial-gradient(rgba(255,255,255,.06) 15%, transparent 16%);
@@ -46,6 +45,12 @@ section{margin-top:2.5rem;}
 .hero h1{text-shadow:0 2px 6px rgba(0,0,0,.35);}
 .hero p{max-width:32ch;margin-inline:auto;color:rgba(255,255,255,.9);}
 @media(min-width:600px){ .hero{padding:7rem 2rem;} }
+
+/* --- NEW: compact hero for very small screens --- */
+@media (max-height:430px){
+  .hero{padding:4rem 1rem 4rem;}
+  .hero h1{font-size:clamp(1.6rem,5.5vw,2.2rem);}
+}
 
 /* =============== services & misc =============== */
 .services article{
@@ -62,7 +67,7 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
 <body>
 <div class="wrapper">
 
-  <!-- HERO  ---------------------------------------------------------->
+  <!-- HERO ----------------------------------------------------------->
   <header class="hero">
     <h1>Welcome to <br>Bark &amp; Stroll&nbsp;LLC</h1>
     <p>Professional dog walking &amp; pet-care services for Bridgeville and nearby areas.</p>
@@ -90,7 +95,7 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
   <!-- PAYMENTS ------------------------------------------------------->
   <section>
     <h2>Payments &amp; Peace of Mind</h2>
-    <p>Tap-to-pay powered by Square—cards, Apple Pay, Google Pay all welcome.
+    <p>Tap-to-pay powered by Square—cards, Apple&nbsp;Pay, Google&nbsp;Pay all welcome.
        Instant digital receipts and automated reminders keep everything simple.</p>
     <p>Bark &amp; Stroll is a fully registered <strong>LLC</strong>, insured, and committed to reliable service.</p>
   </section>

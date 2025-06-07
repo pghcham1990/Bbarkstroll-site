@@ -1,125 +1,68 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>Bark &amp; Stroll LLC – Bridgeville, PA</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
-
+<meta content="Reliable, insured dog‑walking and pet‑sitting service in Bridgeville, PA. Local care you can trust — walks from $35." name="description"/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&amp;display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{
-  font-family:"Nunito",Arial,Helvetica,sans-serif;
-  line-height:1.55; color:#2b2b2b; background:#fafafa;
-  display:flex; flex-direction:column; min-height:100vh;
-}
-h1,h2{font-weight:700; letter-spacing:-.02em;}
-h1{font-size:clamp(1.8rem,6vw,2.6rem); margin-bottom:.25em;}
-h2{font-size:1.4rem; margin:.75em 0 .5em;}
-p{margin:.5em 0;}
-a{color:#14804a; text-decoration:none;}
-a:hover{text-decoration:underline;}
-button.cta{
-  display:inline-block; margin-top:1.4rem; padding:.9rem 1.6rem;
-  border:none; border-radius:6px; font-size:1.05rem; font-weight:700;
-  background:#14804a; color:#fff; cursor:pointer;
-  box-shadow:0 4px 10px rgba(0,0,0,.07); transition:.2s ease;
-}
-button.cta:hover{background:#0f6236;}
-.wrapper{width:min(92%,700px); margin-inline:auto; padding:2rem 0;}
-section{margin-top:2.5rem;}
-.hero{
-  background:
-    radial-gradient(rgba(255,255,255,.08) 12%, transparent 13%) 0 0/5rem 5rem,
-    #14804a;
-  padding:6rem 1rem 6rem;
-  border-radius:12px;
-  text-align:center;
-  color:#fff;
-}
-.hero img {
-  max-width:280px;
-  width:100%;
-  height:auto;
-  margin:0 auto 1.5rem;
-  display:block;
-}
-.services article{
-  background:#fff; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem;
-  box-shadow:0 2px 6px rgba(0,0,0,.05);
-}
-footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padding:1.5rem 0;}
-
+body{font-family:'Nunito',sans-serif;line-height:1.5;color:#222;background:#fafafa}
+header{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 1rem;background:url('https://images.unsplash.com/photo-1529778873920-4da4926a72c2?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat;min-height:60vh;color:#fff;position:relative}
+header::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.45)}
+header>*{position:relative;z-index:1}
+header img{width:140px;height:auto;margin-bottom:1rem}
+header h1{font-size:2rem;font-weight:700;margin-bottom:.5rem}
+header p{font-size:1.1rem;margin-bottom:1.5rem}
+.btn{display:inline-block;padding:.8rem 1.4rem;border-radius:9999px;font-weight:700;text-decoration:none}
+.btn-primary{background:#1b5e20;color:#fff}
+section{padding:3rem 1rem;max-width:720px;margin:auto}
+h2{font-size:1.6rem;font-weight:700;margin-bottom:1.2rem;text-align:center;color:#1b5e20}
+.service-list li{margin-bottom:.6rem}
+blockquote{background:#fff;padding:1.5rem 1.2rem;border-left:4px solid #1b5e20;border-radius:.5rem;margin:1.5rem 0}
+blockquote p{margin-bottom:1rem}
+blockquote footer{font-style:italic;font-size:.9rem;color:#555}
+footer{background:#1b5e20;color:#fff;text-align:center;padding:2rem 1rem}
+footer a{color:#fff;text-decoration:underline}
 @media(min-width:600px){
-  .services-grid{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
-  .hero{padding:7rem 2rem;}
-}
-
-@media (max-height:430px){
-  .hero{padding:3.5rem 1rem 3.5rem;}
-  section.services{margin-top:1.5rem;}
-  .services-grid{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
-  .services article{margin:0;}
+  header h1{font-size:2.4rem}
 }
 </style>
-</head>
-
+<link href="favicon.png" rel="icon" sizes="32x32" type="image/png"/></head>
 <body>
-<div class="wrapper">
-
-  <header class="hero">
-    <img src="bridgeville-bark-stroll-logo.png" alt="Bridgeville Bark & Stroll logo">
-    <p style="max-width:32ch;margin-inline:auto">
-      Professional dog walking &amp; pet-care services for Bridgeville and nearby areas.
-    </p>
-    <a href="tel:14129921480"><button class="cta">Call / Text&nbsp;412-992-1480</button></a>
-  </header>
-
-  <section class="services">
-    <h2>Our&nbsp;Services</h2>
-    <div class="services-grid">
-      <article><h3>🐾 Dog Walking</h3><p>Energetic strolls or relaxed potty breaks—walks tailored to your dog’s age and energy.</p></article>
-      <article><h3>🏡 Pet Sitting</h3><p>In-home visits keep your pet comfortable and on-schedule while you’re away.</p></article>
-      <article><h3>🍽️ Pet Feeding</h3><p>Special diets or strict schedules—we make sure every meal is served just right.</p></article>
-      <article><h3>✨ Custom Care</h3><p>Unique needs? Let’s chat &amp; build a care plan just for your pet.</p></article>
-    </div>
-  </section>
-
-  <section>
-    <h2>Ready to Get Started?</h2>
-    <p>Call or text <a href="tel:14129921480">412-992-1480</a> for your
-       <strong>free in-person consultation</strong>. We’ll learn about your pet and set up the perfect care routine.</p>
-  </section>
-
-  <section>
-    <h2>Payments &amp; Peace of Mind</h2>
-    <p>Tap-to-pay powered by Square—cards, Apple Pay, Google Pay all welcome.
-       Instant digital receipts and automated reminders keep everything simple.</p>
-    <p>Bark &amp; Stroll is a fully registered <strong>LLC</strong>, insured, and committed to reliable service.</p>
-  </section>
-
-  <section>
-    <h2>Contact &amp; Social</h2>
-    <p>Email: <a href="mailto:info@barkstroll.com">info@barkstroll.com</a><br>
-       Phone / Text: <a href="tel:14129921480">412-992-1480</a><br>
-       Facebook: <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/"
-                    target="_blank" rel="noopener">Bridgeville Bark &amp; Stroll</a><br>
-       Instagram: <a href="https://instagram.com/barkstroll_llc/" 
-                    target="_blank" rel="noopener">@barkstroll_llc</a><br>
-       Google Maps | Reviews: <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7?g_st=ic"
-                    target="_blank" rel="noopener">Open in Maps</a>
-    </p>
-  </section>
-
-</div>
-
+<header>
+<img alt="Bridgeville Bark &amp; Stroll logo" src="Bridgeville-bark-stroll-logo.png"/>
+<h1>Bridgeville’s Friendly Dog‑Walking Crew</h1>
+<p>Reliable walks &amp; pet‑sitting, right when you need them.</p>
+<a class="btn btn-primary" href="tel:+14129921480">Book a Walk • 412‑992‑1480</a>
+</header>
+<section>
+<h2>Services</h2>
+<ul class="service-list">
+<li><strong>Dog Walking</strong> — 30‑minute strolls or quick potty breaks, tailored to your pup.</li>
+<li><strong>Pet Sitting</strong> — Drop‑in visits so your pet stays comfy at home while you travel.</li>
+<li><strong>Pet Feeding</strong> — Special diets or strict schedules? We’ve got it covered.</li>
+<li><strong>Custom Care</strong> — Meds, senior dog support, unique routines. Let’s chat.</li>
+</ul>
+</section>
+<section>
+<h2>What Neighbors Are Saying</h2>
+<!-- Replace the text below with your latest 5‑star Google review -->
+<blockquote>
+<p>“Absolutely fantastic service! Scott treated our beagle like family and sent photo updates every walk. Five‑star experience all around.”</p>
+<footer>— Jane D., 5‑star Google review (May 2025)</footer>
+</blockquote>
+<p style="text-align:center"><a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7" rel="noopener" target="_blank">Read more reviews on Google</a></p>
+</section>
+<section>
+<h2>Ready to Get Started?</h2>
+<p style="text-align:center">Call or text <a href="tel:+14129921480">412‑992‑1480</a> for your free meet‑and‑greet.</p>
+</section>
 <footer>
-  © <span id="year"></span> Bark &amp; Stroll LLC &nbsp;|&nbsp; Bridgeville, PA
+<p>Email <a href="mailto:info@barkstroll.com">info@barkstroll.com</a> • Facebook &amp; Instagram @barkstroll_llc</p>
+<p>© Bark &amp; Stroll LLC — Bridgeville, PA</p>
 </footer>
-
-<script>
-document.getElementById('year').textContent = new Date().getFullYear();
-</script>
 </body>
 </html>

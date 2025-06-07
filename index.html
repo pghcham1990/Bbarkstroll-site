@@ -32,10 +32,19 @@ section{margin-top:2.5rem;}
 .hero{
   background:
     radial-gradient(rgba(255,255,255,.08) 12%, transparent 13%) 0 0/5rem 5rem,
-    #14804a;                       /* base green */
-  padding:6rem 1rem 6rem; border-radius:12px; text-align:center; color:#fff;
+    #14804a;
+  padding:6rem 1rem 6rem;
+  border-radius:12px;
+  text-align:center;
+  color:#fff;
 }
-.hero h1{color:#fff;}
+.hero img {
+  max-width:280px;
+  width:100%;
+  height:auto;
+  margin:0 auto 1.5rem;
+  display:block;
+}
 .services article{
   background:#fff; border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem;
   box-shadow:0 2px 6px rgba(0,0,0,.05);
@@ -47,15 +56,11 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
   .hero{padding:7rem 2rem;}
 }
 
-/* ==== compact-height tweaks (≤ 430 px tall, e.g. small phones) ==== */
 @media (max-height:430px){
-  .hero{padding:3.5rem 1rem 3.5rem;}      /* shorter banner */
-  section.services{margin-top:1.5rem;}    /* tighter gap */
-
-  .services-grid{
-    display:grid; grid-template-columns:1fr 1fr; gap:1rem;
-  }
-  .services article{margin:0;}            /* remove extra bottom space */
+  .hero{padding:3.5rem 1rem 3.5rem;}
+  section.services{margin-top:1.5rem;}
+  .services-grid{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
+  .services article{margin:0;}
 }
 </style>
 </head>
@@ -64,7 +69,7 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
 <div class="wrapper">
 
   <header class="hero">
-    <h1>Welcome to <br>Bark &amp; Stroll&nbsp;LLC</h1>
+    <img src="https://yourdomain.com/assets/bridgeville-bark-stroll-logo.png" alt="Bridgeville Bark & Stroll logo">
     <p style="max-width:32ch;margin-inline:auto">
       Professional dog walking &amp; pet-care services for Bridgeville and nearby areas.
     </p>
@@ -94,18 +99,18 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
     <p>Bark &amp; Stroll is a fully registered <strong>LLC</strong>, insured, and committed to reliable service.</p>
   </section>
 
-<section>
-  <h2>Contact &amp; Social</h2>
-  <p>Email: <a href="mailto:info@barkstroll.com">info@barkstroll.com</a><br>
-     Phone / Text: <a href="tel:14129921480">412-992-1480</a><br>
-     Facebook: <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/"
-                  target="_blank" rel="noopener">Bridgeville Bark &amp; Stroll</a><br>
-     Instagram: <a href="https://instagram.com/barkstroll_llc/" 
-                  target="_blank" rel="noopener">@barkstroll_llc</a><br>
-     Google Maps | Reviews: <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7?g_st=ic"
-                  target="_blank" rel="noopener">Open in Maps</a>
-  </p>
-</section>
+  <section>
+    <h2>Contact &amp; Social</h2>
+    <p>Email: <a href="mailto:info@barkstroll.com">info@barkstroll.com</a><br>
+       Phone / Text: <a href="tel:14129921480">412-992-1480</a><br>
+       Facebook: <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/"
+                    target="_blank" rel="noopener">Bridgeville Bark &amp; Stroll</a><br>
+       Instagram: <a href="https://instagram.com/barkstroll_llc/" 
+                    target="_blank" rel="noopener">@barkstroll_llc</a><br>
+       Google Maps | Reviews: <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7?g_st=ic"
+                    target="_blank" rel="noopener">Open in Maps</a>
+    </p>
+  </section>
 
 </div>
 

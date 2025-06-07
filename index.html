@@ -6,8 +6,7 @@
 <title>Bark &amp; Stroll LLC – Bridgeville, PA</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
-
-<!-- Organization & Service schema -->
+<!-- Organization & Service schema (unchanged) -->
 <script type="application/ld+json">
 {
   "@context":"https://schema.org",
@@ -16,12 +15,7 @@
   "url":"https://barkstroll.com",
   "logo":"https://barkstroll.com/bridgeville-bark-stroll-logo.png",
   "telephone":"+1-412-992-1480",
-  "address":{
-    "@type":"PostalAddress",
-    "addressLocality":"Bridgeville",
-    "addressRegion":"PA",
-    "addressCountry":"US"
-  },
+  "address":{"@type":"PostalAddress","addressLocality":"Bridgeville","addressRegion":"PA","addressCountry":"US"},
   "sameAs":[
     "https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/",
     "https://instagram.com/barkstroll_llc"
@@ -36,84 +30,52 @@
   "provider":"Bark & Stroll LLC",
   "serviceType":"Dog walking and pet care",
   "areaServed":"Bridgeville, PA",
-  "offers":{
-    "@type":"Offer",
-    "priceCurrency":"USD",
-    "price":"35-55",
-    "availability":"https://schema.org/InStock"
-  }
+  "offers":{"@type":"Offer","priceCurrency":"USD","price":"35-55","availability":"https://schema.org/InStock"}
 }
 </script>
-
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{
-  font-family:"Nunito",Arial,Helvetica,sans-serif;
-  line-height:1.55; color:#2b2b2b; background:#fafafa;
-  display:flex; flex-direction:column; min-height:100vh;
-}
-h1,h2{font-weight:700; letter-spacing:-.02em;}
-h1{font-size:clamp(1.8rem,6vw,2.6rem); margin-bottom:.25em;}
-h2{font-size:1.4rem; margin:.75em 0 .5em;}
+body{font-family:"Nunito",Arial,Helvetica,sans-serif;line-height:1.55;color:#2b2b2b;background:#fafafa;display:flex;flex-direction:column;min-height:100vh;}
+h1,h2{font-weight:700;letter-spacing:-.02em;}
+h1{font-size:clamp(1.8rem,6vw,2.6rem);margin-bottom:.25em;}
+h2{font-size:1.4rem;margin:.75em 0 .5em;}
 p{margin:.5em 0;}
-a{color:#14804a; text-decoration:none;}
+a{color:#14804a;text-decoration:none;}
 a:hover{text-decoration:underline;}
-button.cta{
-  display:inline-block; margin-top:1.4rem; padding:.9rem 1.6rem;
-  border:none; border-radius:6px; font-size:1.05rem; font-weight:700;
-  background:#14804a; color:#fff; cursor:pointer;
-  box-shadow:0 4px 10px rgba(0,0,0,.07); transition:.2s ease;
-}
+button.cta{display:inline-block;margin-top:1.4rem;padding:.9rem 1.6rem;border:none;border-radius:6px;font-size:1.05rem;font-weight:700;background:#14804a;color:#fff;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.07);transition:.2s ease;}
 button.cta:hover{background:#0f6236;}
-.wrapper{width:min(92%,700px); margin-inline:auto; padding:2rem 0;}
+.wrapper{width:min(92%,700px);margin-inline:auto;padding:2rem 0;}
 section{margin-top:2.5rem;}
-.hero{
-  background:
-    radial-gradient(rgba(255,255,255,.08) 12%, transparent 13%) 0 0/5rem 5rem,
-    #14804a;
-  padding:6rem 1rem 6rem;
-  border-radius:12px;
-  text-align:center;
-  color:#fff;
-}
-.hero img{max-width:280px;width:100%;height:auto;margin:0 auto 1.5rem;display:block;}
-.services article{
-  background:#fff;border-radius:8px;padding:1.25rem 1.5rem;margin-bottom:1rem;
-  box-shadow:0 2px 6px rgba(0,0,0,.05);
-}
+.hero{background:radial-gradient(rgba(255,255,255,.08) 12%, transparent 13%) 0 0/5rem 5rem,#14804a;padding:6rem 1rem 6rem;border-radius:12px;text-align:center;color:#fff;}
+.hero img{max-width:280px;width:100%;height:auto;margin:0 auto 1.2rem;display:block;}
+.services article{background:#fff;border-radius:8px;padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:0 2px 6px rgba(0,0,0,.05);}
 .rates{width:100%;font-size:1rem;margin:.5rem 0;border-collapse:collapse}
 .rates td{padding:.15rem 0;}
 .rates td:last-child{text-align:right;font-weight:700;}
 .perks{text-align:center;margin:.25rem 0 0;font-size:.9rem}
 footer{margin-top:auto;text-align:center;font-size:.85rem;color:#6d6d6d;padding:1.5rem 0}
-
-/* sticky call bar */
-.callbar{
-  display:none;
+@media(min-width:600px){
+  .services-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .hero{padding:7rem 2rem;}
 }
-@media(max-width:600px){
-  .callbar{
-    display:block;position:fixed;bottom:0;left:0;right:0;
-    background:#14804a;color:#fff;text-align:center;padding:.75rem 0;
-    font-weight:700;font-size:1rem;z-index:1000;
-  }
+/* tighter hero for small phones */
+@media(max-width:480px){
+  .hero{padding:2.5rem 1rem 3rem;}
+  .hero img{max-width:200px;margin-bottom:1rem;}
 }
 /* prefers dark scheme */
-@media (prefers-color-scheme:dark){
+@media(prefers-color-scheme:dark){
   body{background:#1d1d1d;color:#eaeaea;}
   .services article{background:#2b2b2b;}
   .hero{background:#0d5c33;}
   a{color:#4ec183;}
   button.cta{background:#4ec183;}
   button.cta:hover{background:#3aa86a;}
-  .callbar{background:#4ec183;}
 }
 </style>
 </head>
-
 <body>
 <div class="wrapper">
-
   <header class="hero">
     <img src="bridgeville-bark-stroll-logo.png" loading="lazy" alt="Bridgeville Bark & Stroll logo">
     <p style="max-width:32ch;margin-inline:auto">
@@ -135,7 +97,7 @@ footer{margin-top:auto;text-align:center;font-size:.85rem;color:#6d6d6d;padding:
         </table>
         <p class="perks">
           📍 live route&nbsp;&nbsp;📸 photo&nbsp;&nbsp;📝 walk notes<br>
-          <em>All walks include these perks — prices exclude tax</em>
+          <em>All walks include these perks</em>
         </p>
       </article>
 
@@ -164,17 +126,11 @@ footer{margin-top:auto;text-align:center;font-size:.85rem;color:#6d6d6d;padding:
        Google Maps &amp; Reviews: <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7" target="_blank" rel="noopener">Open in Maps</a>
     </p>
   </section>
-
 </div>
 
 <footer>
   © <span id="year"></span> Bark &amp; Stroll LLC&nbsp;|&nbsp; Bridgeville, PA
 </footer>
-
-<!-- sticky call bar -->
-<a href="tel:14129921480" class="callbar" aria-label="Tap to call or text Bark & Stroll">
-  Call / Text 412‑992‑1480
-</a>
 
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();

@@ -37,7 +37,7 @@ section{margin-top:2.5rem;}
   text-align:center;
   color:#fff;
 }
-.hero img {
+.hero img{
   max-width:280px;
   width:100%;
   height:auto;
@@ -55,8 +55,14 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
   .hero{padding:7rem 2rem;}
 }
 
-@media (max-height:430px){
-  .hero{padding:3.5rem 1rem 3.5rem;}
+/* tighten hero for small phones */
+@media(max-width:480px){
+  .hero{padding:3.5rem 1rem;}
+  .hero img{max-width:220px;}
+}
+
+@media(max-height:430px){
+  .hero{padding:3.5rem 1rem;}
   section.services{margin-top:1.5rem;}
   .services-grid{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
   .services article{margin:0;}
@@ -104,7 +110,7 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
        Phone / Text: <a href="tel:14129921480">412-992-1480</a><br>
        Facebook: <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/"
                     target="_blank" rel="noopener">Bridgeville Bark &amp; Stroll</a><br>
-       Instagram: <a href="https://instagram.com/barkstroll_llc/" 
+       Instagram: <a href="https://instagram.com/barkstroll_llc/"
                     target="_blank" rel="noopener">@barkstroll_llc</a><br>
        Google Maps | Reviews: <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7?g_st=ic"
                     target="_blank" rel="noopener">Open in Maps</a>
@@ -114,7 +120,7 @@ footer{margin-top:auto; text-align:center; font-size:.85rem; color:#6d6d6d; padd
 </div>
 
 <footer>
-  © <span id="year"></span> Bark &amp; Stroll LLC &nbsp;|&nbsp; Bridgeville, PA
+  © <span id="year"></span> Bark &amp; Stroll LLC&nbsp;|&nbsp; Bridgeville, PA
 </footer>
 
 <script>

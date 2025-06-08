@@ -58,6 +58,24 @@
     "https://instagram.com/barkstroll_llc"
   ]
 }
+
+const walkModal=document.getElementById('walk-faq-modal');
+document.querySelectorAll('.open-walk-faq').forEach(el=>el.addEventListener('click',e=>{
+  e.preventDefault();
+  walkModal.style.opacity='1';
+  walkModal.style.pointerEvents='auto';
+  walkModal.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+}));
+walkModal.addEventListener('click',e=>{
+  if(e.target===walkModal || e.target.classList.contains('close')){
+    walkModal.style.opacity='0';
+    walkModal.style.pointerEvents='none';
+    walkModal.setAttribute('aria-hidden','true');
+    document.body.style.overflow='';
+  }
+});
+
 </script>
 
 <!-- styles -->
@@ -134,6 +152,9 @@ footer small{display:block;margin-top:.3rem;font-size:.75rem}
           📍 live route&nbsp;&nbsp;📸 photo&nbsp;&nbsp;📝 walk notes<br>
           <em>All walks include these perks</em>
         </p>
+<div class="faq-wrap" style="text-align:center;margin-top:.9rem">
+  <a href="#" class="open-walk-faq faq-btn">FAQ &amp; Policies</a>
+</div>
       </article>
 
       <!-- Dog Poop Removal -->
@@ -218,7 +239,7 @@ footer small{display:block;margin-top:.3rem;font-size:.75rem}
     <button class="close" aria-label="Close FAQ">&times;</button>
     <h2>Poop‑Removal FAQ &amp; Policies</h2>
     <p><strong>What does “up to 15 min on‑site” actually mean?</strong><br>
-    A normal yard takes me 10‑15 minutes tops. That 15 minutes (and one 2‑gallon bucket of waste) is included in the price. If it runs longer, это $10 for every extra 10‑minute block—so you only pay more if the job is bigger than average.</p>
+    A normal yard takes me 10‑15 minutes tops. That 15 minutes (and one 2‑gallon bucket of waste) is included in the price. If it runs longer, it’s $10 for every extra 10‑minute block—so you only pay more if the job is bigger than average.</p>
 
     <p><strong>How big is a 2‑gallon bucket?</strong><br>
     Roughly the size of a standard paint bucket, about eight inches across. If we fill more than one in a single visit, the $15 neglected‑yard fee applies.</p>
@@ -243,6 +264,34 @@ footer small{display:block;margin-top:.3rem;font-size:.75rem}
   </div>
 </div>
 
+
+<div id="walk-faq-modal" class="modal-overlay" role="dialog" aria-hidden="true">
+  <div class="modal-content">
+    <button class="close" aria-label="Close FAQ">&times;</button>
+    <h2>Dog&nbsp;Walking FAQ &amp; Policies</h2>
+    <p><strong>What’s included in each walk?</strong><br>
+    A GPS-tracked route, time‑stamped photos, and a summary note—sent right after the walk.</p>
+
+    <p><strong>Does the clock include gearing up?</strong><br>
+    Nope. Your 30 / 45 / 60‑minute timer starts once the leash is clipped and we’re moving.</p>
+
+    <p><strong>Bad weather policy?</strong><br>
+    Safety first. Heavy storms or extreme temps = shorter outdoor time and indoor play to finish the visit length—or a free reschedule if conditions are truly unsafe.</p>
+
+    <p><strong>Multiple dogs?</strong><br>
+    Add $10 per extra dog per walk. They must walk well together; otherwise, we schedule back‑to‑back solo walks.</p>
+
+    <p><strong>Cancellation window?</strong><br>
+    Free up to 12 hours before the visit. Inside 12 hours the full walk fee applies (staff is already booked).</p>
+
+    <p><strong>Equipment?</strong><br>
+    Please leave collars/harnesses and a towel by the door. We wipe paws if streets are wet or salty.</p>
+
+    <p><strong>How do I pay?</strong><br>
+    You’ll receive a secure, encrypted Square invoice—pay by card, Apple Pay, Google Pay, or ACH.</p>
+  </div>
+</div>
+
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -262,6 +311,24 @@ modal.addEventListener('click',e=>{
     document.body.style.overflow='';
   }
 });
+
+const walkModal=document.getElementById('walk-faq-modal');
+document.querySelectorAll('.open-walk-faq').forEach(el=>el.addEventListener('click',e=>{
+  e.preventDefault();
+  walkModal.style.opacity='1';
+  walkModal.style.pointerEvents='auto';
+  walkModal.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+}));
+walkModal.addEventListener('click',e=>{
+  if(e.target===walkModal || e.target.classList.contains('close')){
+    walkModal.style.opacity='0';
+    walkModal.style.pointerEvents='none';
+    walkModal.setAttribute('aria-hidden','true');
+    document.body.style.overflow='';
+  }
+});
+
 </script>
 </body>
 </html>

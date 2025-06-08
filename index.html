@@ -122,6 +122,13 @@ footer small{display:block;margin-top:.3rem;font-size:.75rem}
 
 .faq-btn{display:inline-block;padding:.35rem .9rem;border-radius:6px;font-size:.85rem;font-weight:700;background:#14804a;color:#fff;box-shadow:0 2px 5px rgba(0,0,0,.09);transition:.2s ease;}
 .faq-btn:hover{background:#0f6236;text-decoration:none;}
+
+.cta-wrap{display:flex;flex-direction:column;gap:.75rem;margin-top:1.4rem}
+@media(min-width:480px){.cta-wrap{flex-direction:row}}
+.cta-btn{flex:1;text-align:center;padding:.9rem 1rem;border:none;border-radius:6px;font-size:1.05rem;font-weight:700;background:#14804a;color:#fff;box-shadow:0 4px 10px rgba(0,0,0,.07);transition:.2s ease;cursor:pointer;}
+.cta-btn:hover{opacity:.92;text-decoration:none;}
+.cta-btn.alt{background:#0f6236;}
+
 </style>
 </head>
 <body>
@@ -132,7 +139,12 @@ footer small{display:block;margin-top:.3rem;font-size:.75rem}
     <p style="max-width:32ch;margin-inline:auto">
       Professional dog walking, poop‑scooping &amp; pet‑care services for Bridgeville and nearby areas.
     </p>
-    <a href="tel:14129921480"><button class="cta" aria-label="Call or text Bridgeville Bark & Stroll">Call / Text&nbsp;412‑992‑1480</button></a>
+<div class="cta-wrap">
+  <a href="tel:+14129921480" class="cta-btn">Call&nbsp;412-992-1480</a>
+  <a href="sms:+14129921480&body=Hi%20there!%20I%E2%80%99m%20interested%20in%20pet%20care." class="cta-btn alt">Text&nbsp;Us</a>
+</div>
+
+    
   </header>
 
   <!-- Services -->
@@ -198,7 +210,7 @@ footer small{display:block;margin-top:.3rem;font-size:.75rem}
   <!-- Ready -->
   <section>
     <h2>Ready to Get Started?</h2>
-    <p>Call or text <a href="tel:14129921480">412‑992‑1480</a> for your <strong>free in‑person consultation</strong>. We’ll learn about your pet and set up the perfect care routine.</p>
+    <p>Call or text  for your <strong>free in‑person consultation</strong>. We’ll learn about your pet and set up the perfect care routine.</p>
   </section>
 
   <section>
@@ -209,7 +221,7 @@ footer small{display:block;margin-top:.3rem;font-size:.75rem}
   <section>
     <h2>Contact &amp; Social</h2>
     <p>Email: <a href="mailto:info@barkstroll.com">info@barkstroll.com</a><br>
-       Phone / Text: <a href="tel:14129921480">412‑992‑1480</a><br>
+       Phone / Text: <br>
        Facebook: <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/" target="_blank" rel="noopener">Bridgeville Bark &amp; Stroll</a><br>
        Instagram: <a href="https://instagram.com/barkstroll_llc/" target="_blank" rel="noopener">@barkstroll_llc</a><br>
        Google Maps &amp; Reviews: <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7" target="_blank" rel="noopener">Open in Maps</a>

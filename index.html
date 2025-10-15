@@ -1,327 +1,71 @@
-
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bark &amp; Stroll LLC – Dog Walking, Poop‑Scooping &amp; Pet Care in Bridgeville, PA</title>
-
-<!-- Essential SEO -->
-<meta name="description" content="Bark &amp; Stroll LLC provides professional dog walking, poop‑scooping and personalized pet‑care services in Bridgeville, Pennsylvania. Call or text 412‑992‑1480 for a free consultation.">
+<title>Bark &amp; Stroll LLC – Pet Care in Bridgeville, PA</title>
+<meta name="description" content="Professional dog walking, poop-scooping & personalized pet-care services in Bridgeville, PA.">
 <link rel="canonical" href="https://barkstroll.com/">
 
-<!-- Open Graph -->
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Bark &amp; Stroll LLC">
-<meta property="og:url" content="https://barkstroll.com/">
-<meta property="og:title" content="Bark &amp; Stroll – Dog Walking, Poop‑Scooping &amp; Pet Care | Bridgeville, PA">
-<meta property="og:description" content="Reliable dog walking, poop removal, drop‑ins and custom pet‑care in Bridgeville, PA. Free in‑person consultation.">
-<meta property="og:image" content="https://barkstroll.com/bridgeville-bark-stroll-logo.png">
-
-<!-- Twitter -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Bark &amp; Stroll – Dog Walking, Poop‑Scooping &amp; Pet Care | Bridgeville, PA">
-<meta name="twitter:description" content="Reliable dog walking, poop removal, drop‑ins and custom pet‑care in Bridgeville, PA. Free in‑person consultation.">
-<meta name="twitter:image" content="https://barkstroll.com/bridgeville-bark-stroll-logo.png">
-
-<!-- Favicons -->
 <link rel="icon" type="image/png" href="/favicon.png">
-<link rel="shortcut icon" href="/favicon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
 
-<!-- LocalBusiness schema -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  "name": "Bark & Stroll LLC",
-  "description": "Professional dog walking, poop‑scooping and personalized pet‑care services.",
-  "image": "https://barkstroll.com/bridgeville-bark-stroll-logo.png",
-  "url": "https://barkstroll.com",
-  "telephone": "+1-412-992-1480",
-  "priceRange": "$$",
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "Bridgeville",
-    "addressRegion": "PA",
-    "postalCode": "15017",
-    "addressCountry": "US"
-  },
-  "openingHoursSpecification": [
-    { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"], "opens": "07:00", "closes": "19:00" },
-    { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Saturday","Sunday"], "opens": "09:00", "closes": "17:00" }
-  ],
-  "sameAs": [
-    "https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/",
-    "https://instagram.com/barkstroll_llc"
-  ]
-}
-
-const walkModal=document.getElementById('walk-faq-modal');
-document.querySelectorAll('.open-walk-faq').forEach(el=>el.addEventListener('click',e=>{
-  e.preventDefault();
-  walkModal.style.opacity='1';
-  walkModal.style.pointerEvents='auto';
-  walkModal.setAttribute('aria-hidden','false');
-  document.body.style.overflow='hidden';
-}));
-walkModal.addEventListener('click',e=>{
-  if(e.target===walkModal || e.target.classList.contains('close')){
-    walkModal.style.opacity='0';
-    walkModal.style.pointerEvents='none';
-    walkModal.setAttribute('aria-hidden','true');
-    document.body.style.overflow='';
-  }
-});
-
-</script>
-
-<!-- styles -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Nunito",Arial,Helvetica,sans-serif;line-height:1.55;color:#2b2b2b;background:#fafafa;display:flex;flex-direction:column;min-height:100vh;}
-h1,h2{font-weight:700;letter-spacing:-.02em;}
-h1{font-size:clamp(1.8rem,6vw,2.6rem);margin-bottom:.25em;}
-h2{font-size:1.4rem;margin:.75em 0 .5em;}
-p{margin:.5em 0;}
-a{color:#14804a;text-decoration:none;}
+body{font-family:"Nunito",Arial,sans-serif;line-height:1.55;background:#fafafa;color:#2b2b2b;text-align:center;display:flex;flex-direction:column;min-height:100vh;}
+.hero{background:#14804a;color:#fff;padding:5rem 1rem;border-radius:0 0 12px 12px;}
+.hero img{max-width:250px;width:100%;height:auto;margin-bottom:1rem;}
+h1{font-size:clamp(1.8rem,5vw,2.6rem);margin-bottom:.5rem;}
+h2{font-size:1.4rem;margin:2rem 0 1rem;font-weight:700;}
+ul{list-style:none;padding:0;margin:0;}
+ul li{padding:.5rem 0;font-size:1.1rem;}
+section{padding:2rem 1rem;}
+a{color:#14804a;text-decoration:none;font-weight:700;}
 a:hover{text-decoration:underline;}
-button.cta{display:inline-block;margin-top:1.4rem;padding:.9rem 1.6rem;border:none;border-radius:6px;font-size:1.05rem;font-weight:700;background:#14804a;color:#fff;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.07);transition:.2s ease;}
-button.cta:hover{background:#0f6236;}
-.wrapper{width:min(92%,700px);margin-inline:auto;padding:2rem 0;}
-section{margin-top:2.5rem;}
-.hero{background:radial-gradient(rgba(255,255,255,.08) 12%, transparent 13%) 0 0/5rem 5rem,#14804a;padding:6rem 1rem 6rem;border-radius:12px;text-align:center;color:#fff;}
-.hero img{max-width:280px;width:100%;height:auto;margin:0 auto 1.2rem;display:block;}
-.services article{background:#fff;border-radius:8px;padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:0 2px 6px rgba(0,0,0,.05);}
-.rates{width:100%;font-size:1rem;margin:.5rem 0;border-collapse:collapse}
-.rates td{padding:.15rem 0;}
-.rates td:last-child{text-align:right;font-weight:700;}
-.perks{text-align:center;margin:.25rem 0 0;font-size:.9rem}
-footer{margin-top:auto;text-align:center;font-size:.8rem;color:#6d6d6d;padding:1.5rem 0}
-footer small{display:block;margin-top:.3rem;font-size:.75rem}
-@media(min-width:600px){
-  .services-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
-  .hero{padding:7rem 2rem;}
-}
-@media(max-width:480px){
-  .hero{padding:2.5rem 1rem 3rem;}
-  .hero img{max-width:200px;margin-bottom:1rem;}
-  .rates{font-size:.9rem}
-  .perks{font-size:.8rem}
-}
+footer{margin-top:auto;padding:1.5rem 0;font-size:.85rem;color:#6d6d6d;}
 @media(prefers-color-scheme:dark){
   body{background:#1d1d1d;color:#eaeaea;}
-  .services article{background:#2b2b2b;}
   .hero{background:#0d5c33;}
   a{color:#4ec183;}
-  button.cta{background:#4ec183;}
-  button.cta:hover{background:#3aa86a;}
 }
-
-.faq-btn{display:inline-block;padding:.35rem .9rem;border-radius:6px;font-size:.85rem;font-weight:700;background:#14804a;color:#fff;box-shadow:0 2px 5px rgba(0,0,0,.09);transition:.2s ease;}
-.faq-btn:hover{background:#0f6236;text-decoration:none;}
-
-.cta-wrap{display:flex;flex-direction:column;gap:.75rem;margin-top:1.4rem}
-@media(min-width:480px){.cta-wrap{flex-direction:row}}
-.cta-btn{flex:1;text-align:center;padding:.9rem 1rem;border:none;border-radius:6px;font-size:1.05rem;font-weight:700;background:#14804a;color:#fff;box-shadow:0 4px 10px rgba(0,0,0,.07);transition:.2s ease;cursor:pointer;}
-.cta-btn:hover{opacity:.92;text-decoration:none;}
-.cta-btn.alt{background:#0f6236;}
-
 </style>
 </head>
 <body>
-<div class="wrapper">
-  <!-- Hero -->
   <header class="hero">
-    <img src="bridgeville-bark-stroll-logo.png" loading="lazy" alt="Bridgeville Bark & Stroll logo">
-    <p style="max-width:32ch;margin-inline:auto">
-      Professional dog walking, poop‑scooping &amp; pet‑care services for Bridgeville and nearby areas.
-    </p>
-<div class="cta-wrap">
-  <a href="tel:+14129921480" class="cta-btn">Call&nbsp;412-992-1480</a>
-  <a href="sms:+14129921480&body=Hi%20there!%20I%E2%80%99m%20interested%20in%20pet%20care." class="cta-btn alt">Text&nbsp;Us</a>
-</div>
-
-    
+    <img src="bridgeville-bark-stroll-logo.png" alt="Bridgeville Bark & Stroll logo">
+    <h1>Bark &amp; Stroll LLC</h1>
+    <p>Dog Walking • Poop Removal • Pet Sitting • Feeding • Custom Care</p>
   </header>
 
-  <!-- Services -->
-  <section class="services">
-    <h2>Our&nbsp;Services</h2>
-    <div class="services-grid">
-      <!-- Dog Walking -->
-      <article>
-        <h3>🐾 Dog Walking</h3>
-        <p>Energetic strolls or relaxed potty breaks—walks tailored to your dog’s age and energy.</p>
-        
-        <p class="perks">
-          📍 live route&nbsp;&nbsp;📸 photo&nbsp;&nbsp;📝 walk notes<br>
-          <em>All walks include these perks</em>
-        </p>
-      </article>
-
-      <!-- Dog Poop Removal -->
-      <article>
-        <h3>💩 Poop Removal</h3>
-        <p>Skip the stink—keep your yard clean without lifting a scoop.</p>
-      </article>
-
-      <!-- Pet Sitting -->
-      <article>
-        <h3>🏡 Pet Sitting</h3>
-        <p>In‑home visits keep your pet comfortable and on‑schedule while you’re away. Pricing by visit length—contact us for a custom quote.</p>
-      </article>
-
-      <!-- Pet Feeding -->
-      <article>
-        <h3>🍽️ Pet Feeding</h3>
-        <p>Special diets or strict schedules—we make sure every meal is served just right. Rates quoted case‑by‑case.</p>
-      </article>
-
-      <!-- Custom Care -->
-      <article>
-        <h3>✨ Custom Care</h3>
-        <p>Unique needs? Let’s chat &amp; build a care plan just for your pet.</p>
-      </article>
-    </div>
-  </section>
-
-  <!-- Ready -->
   <section>
-    <h2>Ready to Get Started?</h2>
-    <p>Call or text  for your <strong>free in‑person consultation</strong>. We’ll learn about your pet and set up the perfect care routine.</p>
-  </section>
-
-  <section>
-    <h2>Payments &amp; Peace of Mind</h2>
-    <p>Tap‑to‑pay powered by Square—cards, Apple Pay, Google Pay all welcome. Most clients receive a Square invoice via text or email and pay securely in one tap—no cash, totally encrypted.</p>
+    <h2>Our Services</h2>
+    <ul>
+      <li>🐾 Dog Walking</li>
+      <li>💩 Poop Removal</li>
+      <li>🏡 Pet Sitting</li>
+      <li>🍽️ Pet Feeding</li>
+      <li>✨ Custom Care</li>
+    </ul>
   </section>
 
   <section>
     <h2>Contact &amp; Social</h2>
-    <p>Email: <a href="mailto:info@barkstroll.com">info@barkstroll.com</a><br>
-       Phone / Text: <a href="tel:+14129921480">(412) 992-1480</a><br>
-       Facebook: <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/" target="_blank" rel="noopener">Bridgeville Bark &amp; Stroll</a><br>
-       Instagram: <a href="https://instagram.com/barkstroll_llc/" target="_blank" rel="noopener">@barkstroll_llc</a><br>
-       Google Maps &amp; Reviews: <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7" target="_blank" rel="noopener">Open in Maps</a>
+    <p>
+      📧 <a href="mailto:info@barkstroll.com">info@barkstroll.com</a><br>
+      📱 <a href="tel:+14129921480">(412) 992-1480</a><br>
+      <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/" target="_blank">Facebook</a> • 
+      <a href="https://instagram.com/barkstroll_llc/" target="_blank">Instagram</a> • 
+      <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7" target="_blank">Google Maps</a>
     </p>
   </section>
-</div>
 
-<footer>
-  © <span id="year"></span> Bark &amp; Stroll LLC&nbsp;|&nbsp;Bridgeville, PA
-  
-</footer>
-
-<!-- Poop FAQ Modal -->
-<style>
-.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:999;}
-.modal-content{background:#fff;max-width:600px;width:90%;max-height:90vh;overflow-y:auto;border-radius:10px;padding:1.5rem;font-size:.95rem;line-height:1.5;color:#2b2b2b;position:relative;}
-.modal-content h2{font-size:1.3rem;margin-bottom:.75rem;}
-.modal-content button.close{position:absolute;top:.6rem;right:.6rem;border:none;background:transparent;font-size:1.6rem;cursor:pointer;color:#666;}
-@media(prefers-color-scheme:dark){
-  .modal-content{background:#2b2b2b;color:#eaeaea;}
-  .modal-content button.close{color:#aaa;}
-}
-</style>
-
-<div id="poop-faq-modal" class="modal-overlay" role="dialog" aria-hidden="true">
-  <div class="modal-content">
-    <button class="close" aria-label="Close FAQ">&times;</button>
-    <h2>Poop‑Removal FAQ &amp; Policies</h2>
-    <p><strong>What does “up to 15 min on‑site” actually mean?</strong><br>
-    A normal yard takes me 10‑15 minutes tops. That 15 minutes (and one 2‑gallon bucket of waste) is included in the price. If it runs longer, it’s $10 for every extra 10‑minute block—so you only pay more if the job is bigger than average.</p>
-
-    <p><strong>How big is a 2‑gallon bucket?</strong><br>
-    Roughly the size of a standard paint bucket, about eight inches across. If we fill more than one in a single visit, the $15 neglected‑yard fee applies.</p>
-
-    <p><strong>Why is the bi‑weekly visit more per stop?</strong><br>
-    Stuff piles up when I’m only there every other week; it simply takes longer. Weekly service keeps things quicker, cheaper, and nicer for you—and the dog.</p>
-
-    <p><strong>Do you haul everything away?</strong><br>
-    Yep. Bagged, sealed, and gone. You’re left with a clean yard, no stink‑bin by the gate.</p>
-
-    <p><strong>What if I have two dogs?</strong><br>
-    Add $3 per dog on the weekly plan, $4 on the bi‑weekly plan, $10 for the one‑time deep clean—still cheaper than buying bags and doing it yourself.</p>
-
-    <p><strong>How do I know you actually came?</strong><br>
-    I text you a live GPS timestamp plus before/after photos right from your yard.</p>
-
-    <p><strong>Do I have to be home?</strong><br>
-    Nope—just unlock the gate. I’m in and out before the pups even notice.</p>
-
-    <p><strong>How do I pay?</strong><br>
-    I’ll email you a secure, encrypted Square invoice so you can pay with whatever’s easiest—card, Apple Pay, Google Pay, ACH, you name it.</p>
-  </div>
-</div>
-
-
-<div id="walk-faq-modal" class="modal-overlay" role="dialog" aria-hidden="true">
-  <div class="modal-content">
-    <button class="close" aria-label="Close FAQ">&times;</button>
-    <h2>Dog&nbsp;Walking FAQ &amp; Policies</h2>
-    <p><strong>What’s included in each walk?</strong><br>
-    A GPS-tracked route, time‑stamped photos, and a summary note—sent right after the walk.</p>
-
-    <p><strong>Does the clock include gearing up?</strong><br>
-    Nope. Your 30 / 45 / 60‑minute timer starts once the leash is clipped and we’re moving.</p>
-
-    <p><strong>Bad weather policy?</strong><br>
-    Safety first. Heavy storms or extreme temps = shorter outdoor time and indoor play to finish the visit length—or a free reschedule if conditions are truly unsafe.</p>
-
-    <p><strong>Multiple dogs?</strong><br>
-    Add $10 per extra dog per walk. They must walk well together; otherwise, we schedule back‑to‑back solo walks.</p>
-
-    <p><strong>Cancellation window?</strong><br>
-    Free up to 12 hours before the visit. Inside 12 hours the full walk fee applies (staff is already booked).</p>
-
-    <p><strong>Equipment?</strong><br>
-    Please leave collars/harnesses and a towel by the door. We wipe paws if streets are wet or salty.</p>
-
-    <p><strong>How do I pay?</strong><br>
-    You’ll receive a secure, encrypted Square invoice—pay by card, Apple Pay, Google Pay, or ACH.</p>
-  </div>
-</div>
+  <footer>
+    © <span id="year"></span> Bark &amp; Stroll LLC | Bridgeville, PA
+  </footer>
 
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
-
-const modal=document.getElementById('poop-faq-modal');
-document.querySelectorAll('.open-poop-faq').forEach(el=>el.addEventListener('click',e=>{
-  e.preventDefault();
-  modal.style.opacity='1';
-  modal.style.pointerEvents='auto';
-  modal.setAttribute('aria-hidden','false');
-  document.body.style.overflow='hidden';
-}));
-modal.addEventListener('click',e=>{
-  if(e.target===modal || e.target.classList.contains('close')){
-    modal.style.opacity='0';
-    modal.style.pointerEvents='none';
-    modal.setAttribute('aria-hidden','true');
-    document.body.style.overflow='';
-  }
-});
-
-const walkModal=document.getElementById('walk-faq-modal');
-document.querySelectorAll('.open-walk-faq').forEach(el=>el.addEventListener('click',e=>{
-  e.preventDefault();
-  walkModal.style.opacity='1';
-  walkModal.style.pointerEvents='auto';
-  walkModal.setAttribute('aria-hidden','false');
-  document.body.style.overflow='hidden';
-}));
-walkModal.addEventListener('click',e=>{
-  if(e.target===walkModal || e.target.classList.contains('close')){
-    walkModal.style.opacity='0';
-    walkModal.style.pointerEvents='none';
-    walkModal.setAttribute('aria-hidden','true');
-    document.body.style.overflow='';
-  }
-});
-
 </script>
 </body>
 </html>

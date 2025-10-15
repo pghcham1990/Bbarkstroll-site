@@ -5,64 +5,160 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bark &amp; Stroll LLC – Pet Care in Bridgeville, PA</title>
 <meta name="description" content="Professional dog walking, poop-scooping & personalized pet-care services in Bridgeville, PA.">
-<link rel="canonical" href="https://barkstroll.com/">
-
 <link rel="icon" type="image/png" href="/favicon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Nunito",Arial,sans-serif;line-height:1.55;background:#fafafa;color:#2b2b2b;text-align:center;display:flex;flex-direction:column;min-height:100vh;}
-.hero{background:#14804a;color:#fff;padding:5rem 1rem;border-radius:0 0 12px 12px;}
-.hero img{max-width:250px;width:100%;height:auto;margin-bottom:1rem;}
-h1{font-size:clamp(1.8rem,5vw,2.6rem);margin-bottom:.5rem;}
-h2{font-size:1.4rem;margin:2rem 0 1rem;font-weight:700;}
-ul{list-style:none;padding:0;margin:0;}
-ul li{padding:.5rem 0;font-size:1.1rem;}
-section{padding:2rem 1rem;}
-a{color:#14804a;text-decoration:none;font-weight:700;}
-a:hover{text-decoration:underline;}
-footer{margin-top:auto;padding:1.5rem 0;font-size:.85rem;color:#6d6d6d;}
+body{
+  font-family:"Nunito",Arial,sans-serif;
+  background:#fafafa;
+  color:#2b2b2b;
+  line-height:1.6;
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
+  text-align:center;
+  overflow-x:hidden;
+}
+
+/* Header */
+.hero{
+  background:linear-gradient(135deg,#14804a 0%,#1ea85f 100%);
+  color:#fff;
+  padding:5rem 1rem 4rem;
+  border-bottom-left-radius:40px;
+  border-bottom-right-radius:40px;
+  box-shadow:0 4px 12px rgba(0,0,0,.15);
+}
+.hero img{
+  max-width:260px;
+  width:90%;
+  height:auto;
+  margin-bottom:1rem;
+  filter:drop-shadow(0 4px 6px rgba(0,0,0,.3));
+}
+.hero h1{
+  font-size:clamp(2rem,5vw,2.8rem);
+  margin-bottom:.5rem;
+}
+.hero p{
+  font-size:1.1rem;
+  opacity:.95;
+}
+
+/* Services */
+section{
+  padding:3rem 1.5rem;
+}
+h2{
+  font-size:1.6rem;
+  color:#14804a;
+  margin-bottom:1.5rem;
+}
+.services{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:1rem;
+  max-width:900px;
+  margin:0 auto;
+}
+.service-card{
+  background:#fff;
+  border-radius:16px;
+  padding:1.5rem;
+  box-shadow:0 3px 10px rgba(0,0,0,.07);
+  transition:.25s ease;
+}
+.service-card:hover{
+  transform:translateY(-6px);
+  box-shadow:0 6px 18px rgba(0,0,0,.12);
+}
+.service-card span{
+  font-size:2rem;
+  display:block;
+  margin-bottom:.5rem;
+}
+.service-card p{
+  font-weight:600;
+  font-size:1.05rem;
+}
+
+/* Contact */
+.contact{
+  background:#f3f9f5;
+  border-top:1px solid #dce7e0;
+  border-radius:20px;
+  max-width:800px;
+  margin:3rem auto;
+  padding:2.5rem 1.5rem;
+  box-shadow:inset 0 0 8px rgba(0,0,0,.04);
+}
+.contact p{
+  font-size:1.05rem;
+  margin-bottom:1rem;
+}
+.contact a{
+  color:#14804a;
+  font-weight:700;
+  text-decoration:none;
+  transition:.2s ease;
+}
+.contact a:hover{
+  opacity:.75;
+}
+
+/* Footer */
+footer{
+  margin-top:auto;
+  padding:1.5rem 0 2rem;
+  font-size:.85rem;
+  color:#6d6d6d;
+}
+
+/* Dark mode */
 @media(prefers-color-scheme:dark){
-  body{background:#1d1d1d;color:#eaeaea;}
-  .hero{background:#0d5c33;}
+  body{background:#1b1b1b;color:#eaeaea;}
+  .hero{background:linear-gradient(135deg,#0c5a33 0%,#11874d 100%);}
+  .service-card{background:#2b2b2b;box-shadow:0 3px 10px rgba(0,0,0,.3);}
+  .contact{background:#202c25;border:none;box-shadow:none;}
   a{color:#4ec183;}
 }
 </style>
 </head>
 <body>
-  <header class="hero">
-    <img src="bridgeville-bark-stroll-logo.png" alt="Bridgeville Bark & Stroll logo">
-    <h1>Bark &amp; Stroll LLC</h1>
-    <p>Dog Walking • Poop Removal • Pet Sitting • Feeding • Custom Care</p>
-  </header>
 
-  <section>
-    <h2>Our Services</h2>
-    <ul>
-      <li>🐾 Dog Walking</li>
-      <li>💩 Poop Removal</li>
-      <li>🏡 Pet Sitting</li>
-      <li>🍽️ Pet Feeding</li>
-      <li>✨ Custom Care</li>
-    </ul>
-  </section>
+<header class="hero">
+  <img src="bridgeville-bark-stroll-logo.png" alt="Bridgeville Bark & Stroll logo">
+  <h1>Bark &amp; Stroll LLC</h1>
+  <p>Professional pet-care serving Bridgeville, Pennsylvania</p>
+</header>
 
-  <section>
-    <h2>Contact &amp; Social</h2>
-    <p>
-      📧 <a href="mailto:scott.rocca.pa@gmail.com">scott.rocca.pa@gmail.com</a><br>
-      📱 <a href="tel:+14129921480">(412) 992-1480</a><br>
-      <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/" target="_blank">Facebook</a> • 
-      <a href="https://instagram.com/barkstroll_llc/" target="_blank">Instagram</a> • 
-      <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7" target="_blank">Google Maps</a>
-    </p>
-  </section>
+<section>
+  <h2>Our Services</h2>
+  <div class="services">
+    <div class="service-card"><span>🐾</span><p>Dog Walking</p></div>
+    <div class="service-card"><span>💩</span><p>Poop Removal</p></div>
+    <div class="service-card"><span>🏡</span><p>Pet Sitting</p></div>
+    <div class="service-card"><span>🍽️</span><p>Pet Feeding</p></div>
+    <div class="service-card"><span>✨</span><p>Custom Care</p></div>
+  </div>
+</section>
 
-  <footer>
-    © <span id="year"></span> Bark &amp; Stroll LLC | Bridgeville, PA
-  </footer>
+<section class="contact">
+  <h2>Contact &amp; Social</h2>
+  <p>
+    📧 <a href="mailto:scott.rocca.pa@gmail.com">scott.rocca.pa@gmail.com</a><br>
+    📱 <a href="tel:+14129921480">(412) 992-1480</a><br><br>
+    <a href="https://m.facebook.com/p/Bridgeville-Bark-Stroll-61567436138987/" target="_blank">Facebook</a> &nbsp;|&nbsp;
+    <a href="https://instagram.com/barkstroll_llc/" target="_blank">Instagram</a> &nbsp;|&nbsp;
+    <a href="https://maps.app.goo.gl/zNLLyYJJ37fpXMNR7" target="_blank">Google Maps</a>
+  </p>
+</section>
+
+<footer>
+  © <span id="year"></span> Bark &amp; Stroll LLC | Bridgeville, PA
+</footer>
 
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();

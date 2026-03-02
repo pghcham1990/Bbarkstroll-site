@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bark & Stroll — Staff Login</title>
+<link rel="icon" type="image/png" href="https://barkstroll.com/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--forest:#14613a;--forest-deep:#0d4428;--sage:#e8f0e6;--cream:#faf8f4;--gold:#c4a44e;--white:#fff;--text:#2a2a28;--text-soft:#5a5a56;--radius:20px;--radius-sm:12px}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.card{background:var(--white);border-radius:var(--radius);box-shadow:0 4px 24px rgba(0,0,0,.08);padding:2.5rem 2rem;width:100%;max-width:380px;text-align:center}
+.logo{width:90px;height:90px;border-radius:50%;object-fit:cover;margin:0 auto 1rem;display:block;box-shadow:0 2px 12px rgba(0,0,0,.1)}
+h1{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:.25rem}
+.sub{color:var(--text-soft);font-size:.85rem;margin-bottom:1.75rem}
+.field{margin-bottom:1rem;text-align:left}
+.field label{display:block;font-size:.75rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-soft);margin-bottom:.35rem}
+.field input{width:100%;padding:.7rem .9rem;border:1.5px solid #ddd;border-radius:var(--radius-sm);font-family:inherit;font-size:.95rem;color:var(--text);outline:none;transition:border-color .2s}
+.field input:focus{border-color:var(--forest)}
+.btn{width:100%;padding:.75rem;background:var(--forest);color:var(--white);border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .2s;margin-top:.5rem}
+.btn:hover{background:var(--forest-deep)}
+.btn:active{transform:scale(.98)}
+.err{color:#c0392b;font-size:.8rem;margin-top:.75rem;min-height:1.2em}
+.back{display:inline-block;margin-top:1.25rem;font-size:.8rem;color:var(--text-soft);text-decoration:none}
+.back:hover{color:var(--forest)}
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="logo" src="https://barkstroll.com/bridgeville-bark-stroll-logo.png" alt="Bark & Stroll">
+  <h1>Staff Portal</h1>
+  <p class="sub">Sign in to manage appointments</p>
+  <form id="loginForm">
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn">Sign In</button>
+    <p class="err" id="err"></p>
+  </form>
+  <a href="/" class="back">&larr; Back to barkstroll.com</a>
+</div>
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const err = document.getElementById('err');
+  err.textContent = '';
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  if (!username || !password) { err.textContent = 'Please fill in both fields'; return; }
+  try {
+    const r = await fetch('/admin/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    if (r.ok) { window.location.href = '/admin/app'; return; }
+    const data = await r.json();
+    err.textContent = data.error || 'Invalid credentials';
+  } catch {
+    err.textContent = 'Connection error';
+  }
+});
+</script>
+</body>
+</html>

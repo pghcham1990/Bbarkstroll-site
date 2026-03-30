@@ -46,33 +46,106 @@ h1{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:.25rem}
   <a href="/" class="back">&larr; Back to barkstroll.com</a>
 </div>
 <script>
-document.getElementById('loginForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const err = document.getElementById('err');
-  err.textContent = '';
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
-  if (!username || !password) { err.textContent = 'Please fill in both fields'; return; }
-  try {
-    const r = await fetch('/admin/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    if (r.ok) {
-      const data = await r.json();
-      const role = data.user && data.user.role;
-      if (role === 'customer') { window.location.href = '/client'; }
-      else if (role === 'walker') { window.location.href = '/walker'; }
-      else { window.location.href = '/admin/app'; }
+(function() {
+  const form = document.getElementById('loginForm');
+  const errEl = document.getElementById('err');
+  let pendingChallenge = null; // { challenge_id, username, password }
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    errEl.textContent = '';
+
+    // --- Challenge code submission ---
+    if (pendingChallenge) {
+      const code = document.getElementById('verifyCode').value.trim();
+      if (!code) { errEl.textContent = 'Please enter the verification code'; return; }
+      try {
+        const r = await fetch('/admin/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: pendingChallenge.username,
+            password: pendingChallenge.password,
+            challenge_id: pendingChallenge.challenge_id,
+            code
+          })
+        });
+        const data = await r.json();
+        if (r.ok && data.ok) {
+          const role = data.user && data.user.role;
+          if (role === 'customer') { window.location.href = '/client'; }
+          else if (role === 'walker') { window.location.href = '/walker'; }
+          else { window.location.href = '/admin/app'; }
+          return;
+        }
+        errEl.textContent = data.error || 'Verification failed';
+      } catch {
+        errEl.textContent = 'Connection error';
+      }
       return;
     }
-    const data = await r.json();
-    err.textContent = data.error || 'Invalid credentials';
-  } catch {
-    err.textContent = 'Connection error';
+
+    // --- Normal login ---
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    if (!username || !password) { errEl.textContent = 'Please fill in both fields'; return; }
+
+    try {
+      const r = await fetch('/admin/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await r.json();
+
+      // Challenge required
+      if (data.challenge && data.challenge_id) {
+        pendingChallenge = { challenge_id: data.challenge_id, username, password };
+        showChallengeUI();
+        return;
+      }
+
+      // Locked
+      if (r.status === 423 || data.locked) {
+        errEl.textContent = data.error || 'Account locked. Try again later.';
+        return;
+      }
+
+      // Success
+      if (r.ok && data.ok) {
+        const role = data.user && data.user.role;
+        if (role === 'customer') { window.location.href = '/client'; }
+        else if (role === 'walker') { window.location.href = '/walker'; }
+        else { window.location.href = '/admin/app'; }
+        return;
+      }
+
+      errEl.textContent = data.error || 'Invalid credentials';
+    } catch {
+      errEl.textContent = 'Connection error';
+    }
+  });
+
+  function showChallengeUI() {
+    // Hide username/password fields, show code input
+    const fieldContainer = form.querySelector('.field:nth-child(1)');
+    const fieldContainer2 = form.querySelector('.field:nth-child(2)');
+    fieldContainer.style.display = 'none';
+    fieldContainer2.style.display = 'none';
+
+    // Insert challenge UI before the button
+    const btn = form.querySelector('.btn');
+    const challengeHTML = '<div class="field" id="challengeField">' +
+      '<p style="font-size:.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.4">' +
+      'A verification code was sent to your email. Enter it below.</p>' +
+      '<label for="verifyCode">Verification Code</label>' +
+      '<input type="text" id="verifyCode" name="code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" required placeholder="000000">' +
+      '</div>';
+    btn.insertAdjacentHTML('beforebegin', challengeHTML);
+    btn.textContent = 'Verify';
+    document.getElementById('verifyCode').focus();
   }
-});
+})();
 </script>
 </body>
 </html>

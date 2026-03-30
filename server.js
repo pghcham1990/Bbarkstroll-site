@@ -10,7 +10,9 @@ const PORT = process.env.PORT || 8081;
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+const SqliteStore = require('./lib/session-store');
 app.use(session({
+  store: SqliteStore(),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,

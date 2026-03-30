@@ -34,21 +34,21 @@ router.get('/customers/:id', (req, res) => {
 
 // Create customer
 router.post('/customers', (req, res) => {
-  const { first_name, last_name, email, phone, address, notes } = req.body;
+  const { first_name, last_name, email, phone, address, notes, status, rate } = req.body;
   if (!first_name || !last_name) return res.status(400).json({ error: 'First and last name required' });
   const result = db.prepare(
-    'INSERT INTO customers (first_name, last_name, email, phone, address, notes) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(first_name, last_name, email || null, phone || null, address || null, notes || null);
+    'INSERT INTO customers (first_name, last_name, email, phone, address, notes, status, rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(first_name, last_name, email || null, phone || null, address || null, notes || null, status || 'active', rate ? parseFloat(rate) : null);
   res.json({ ok: true, id: result.lastInsertRowid });
 });
 
 // Update customer
 router.put('/customers/:id', (req, res) => {
-  const { first_name, last_name, email, phone, address, notes } = req.body;
+  const { first_name, last_name, email, phone, address, notes, status, rate } = req.body;
   if (!first_name || !last_name) return res.status(400).json({ error: 'First and last name required' });
   db.prepare(
-    "UPDATE customers SET first_name=?, last_name=?, email=?, phone=?, address=?, notes=?, updated_at=datetime('now') WHERE id=?"
-  ).run(first_name, last_name, email || null, phone || null, address || null, notes || null, req.params.id);
+    "UPDATE customers SET first_name=?, last_name=?, email=?, phone=?, address=?, notes=?, status=?, rate=?, updated_at=datetime('now') WHERE id=?"
+  ).run(first_name, last_name, email || null, phone || null, address || null, notes || null, status || 'active', rate ? parseFloat(rate) : null, req.params.id);
   res.json({ ok: true });
 });
 

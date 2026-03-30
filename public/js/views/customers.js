@@ -1,6 +1,21 @@
 /* === Customers View === */
 let _expandedCustomer = null;
 
+const _avatarColors = [
+  { bg: 'rgba(196,164,78,0.15)', text: '#c4a44e', border: 'rgba(196,164,78,0.3)' },
+  { bg: 'rgba(46,204,113,0.15)', text: '#2ecc71', border: 'rgba(46,204,113,0.3)' },
+  { bg: 'rgba(52,152,219,0.15)', text: '#3498db', border: 'rgba(52,152,219,0.3)' },
+  { bg: 'rgba(155,89,182,0.15)', text: '#9b59b6', border: 'rgba(155,89,182,0.3)' },
+  { bg: 'rgba(230,126,34,0.15)', text: '#e67e22', border: 'rgba(230,126,34,0.3)' },
+  { bg: 'rgba(231,76,60,0.12)', text: '#e74c3c', border: 'rgba(231,76,60,0.25)' },
+];
+
+function getAvatarColor(name) {
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return _avatarColors[Math.abs(hash) % _avatarColors.length];
+}
+
 async function render_customers(el) {
   el.innerHTML = `
     <p class="section-label">Manage</p>
@@ -30,20 +45,38 @@ async function loadCustomers() {
       container.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No clients found</div></div>';
       return;
     }
-    container.innerHTML = customers.map(c => `
-      <div class="list-item" onclick="toggleCustomer(${c.id})">
-        <div class="list-icon">👤</div>
-        <div class="list-body">
-          <div class="list-title">${esc(c.last_name)}, ${esc(c.first_name)}</div>
-          <div class="list-sub">${fmtPhone(c.phone) || c.email || 'No contact info'}</div>
-          ${c.dog_count ? `<div class="dog-list">${'🐾'.repeat(Math.min(c.dog_count, 5))} <span style="font-size:.7rem;color:var(--text-soft)">${c.dog_count} dog${c.dog_count > 1 ? 's' : ''}</span></div>` : ''}
+    const active = customers.filter(c => c.status !== 'prospect');
+    const prospects = customers.filter(c => c.status === 'prospect');
+
+    function renderCustomerItem(c) {
+      const isProspect = c.status === 'prospect';
+      const dogText = c.dog_count ? c.dog_count + ' dog' + (c.dog_count > 1 ? 's' : '') : '';
+      const initial = c.first_name ? esc(c.first_name.charAt(0).toUpperCase()) : '?';
+      const color = getAvatarColor(c.first_name + c.last_name);
+      return `
+        <div class="list-item" onclick="toggleCustomer(${c.id})">
+          <div class="list-icon${isProspect ? ' prospect' : ''}" style="background:${isProspect ? '' : color.bg};color:${isProspect ? '' : color.text};border:1.5px solid ${isProspect ? 'transparent' : color.border}">${isProspect ? '○' : initial}</div>
+          <div class="list-body">
+            <div class="list-title">${esc(c.last_name)}, ${esc(c.first_name)}</div>
+            <div class="list-sub">${fmtPhone(c.phone) || c.email || 'No contact info'}</div>
+            <div class="list-meta">
+              ${c.rate ? '<span class="list-rate">$' + Number(c.rate).toFixed(0) + '</span>' : ''}
+              ${dogText ? '<span class="list-badge">🐾 ' + dogText + '</span>' : ''}
+            </div>
+          </div>
+          <button class="list-edit-btn" onclick="event.stopPropagation();openCustomerForm(${c.id})" title="Edit">✏️</button>
         </div>
-        <div class="list-actions">
-          <button class="btn btn-outline btn-sm btn-icon" onclick="event.stopPropagation();openCustomerForm(${c.id})" title="Edit">✏️</button>
-        </div>
-      </div>
-      <div id="detail-${c.id}" style="display:none"></div>
-    `).join('');
+        <div id="detail-${c.id}" style="display:none"></div>
+      `;
+    }
+
+    let html = '';
+    if (active.length) html += active.map(renderCustomerItem).join('');
+    if (prospects.length) {
+      html += '<div class="prospects-label">Prospects</div>';
+      html += prospects.map(renderCustomerItem).join('');
+    }
+    container.innerHTML = html;
     if (_expandedCustomer) toggleCustomer(_expandedCustomer, true);
   } catch (e) { toast(e.message, 'err'); }
 }
@@ -62,32 +95,95 @@ async function toggleCustomer(id, forceOpen) {
     panel.style.display = 'block';
     panel.innerHTML = `
       <div class="detail-panel">
-        ${c.email ? `<div class="detail-row"><span class="detail-label">Email</span><span>${esc(c.email)}</span></div>` : ''}
-        ${c.phone ? `<div class="detail-row"><span class="detail-label">Phone</span><span>${fmtPhone(c.phone)}</span></div>` : ''}
-        ${c.address ? `<div class="detail-row"><span class="detail-label">Address</span><span>${esc(c.address)}</span></div>` : ''}
-        ${c.notes ? `<div class="detail-row"><span class="detail-label">Notes</span><span>${esc(c.notes)}</span></div>` : ''}
-        <div style="margin-top:.5rem;display:flex;align-items:center;justify-content:space-between">
-          <strong style="font-size:.8rem">Dogs</strong>
-          <button class="btn btn-outline btn-sm" onclick="openDogForm(${c.id})">+ Add Dog</button>
+        <div class="detail-grid">
+          ${c.email ? '<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">' + esc(c.email) + '</span></div>' : ''}
+          ${c.phone ? '<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">' + fmtPhone(c.phone) + '</span></div>' : ''}
+          ${c.address ? '<div class="detail-row full-width"><span class="detail-label">Address</span><span class="detail-value">' + esc(c.address) + '</span></div>' : ''}
+          ${c.rate != null ? '<div class="detail-row"><span class="detail-label">Rate</span><span class="detail-value" style="color:var(--gold);font-weight:700">$' + Number(c.rate).toFixed(2) + '</span></div>' : ''}
         </div>
-        ${c.dogs.length ? c.dogs.map(d => `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #eee">
-            <div>
-              <span style="font-weight:600;font-size:.85rem">🐕 ${esc(d.name)}</span>
-              ${d.breed ? `<span style="color:var(--text-soft);font-size:.75rem"> — ${esc(d.breed)}</span>` : ''}
-              ${d.notes ? `<div style="font-size:.7rem;color:var(--text-soft)">${esc(d.notes)}</div>` : ''}
-            </div>
-            <div style="display:flex;gap:.25rem">
-              <button class="btn btn-outline btn-sm" style="padding:.25rem .5rem;font-size:.7rem" onclick="openDogForm(${c.id},${d.id})">Edit</button>
-              <button class="btn btn-danger btn-sm" style="padding:.25rem .5rem;font-size:.7rem" onclick="deleteDog(${d.id})">Del</button>
+        <div class="detail-section">
+          <div class="detail-section-header">
+            <span class="detail-section-title">Notes</span>
+          </div>
+          <div id="notesList-${c.id}"></div>
+          <div class="note-add-form">
+            <textarea id="noteInput-${c.id}" class="note-input" placeholder="Add a note..." rows="2"></textarea>
+            <div class="note-add-actions">
+              <label class="btn btn-outline btn-sm note-file-label" title="Attach file">
+                📎 <input type="file" id="noteFile-${c.id}" style="display:none" onchange="updateFileLabel(${c.id})">
+                <span id="noteFileName-${c.id}"></span>
+              </label>
+              <button class="btn btn-primary btn-sm" onclick="addNote(${c.id})">+ Add Note</button>
             </div>
           </div>
-        `).join('') : '<p style="font-size:.8rem;color:var(--text-soft);padding:.5rem 0">No dogs yet</p>'}
-        <div style="margin-top:.75rem">
+        </div>
+        <div class="detail-section">
+          <div class="detail-section-header">
+            <span class="detail-section-title">Dogs</span>
+            <button class="btn btn-outline btn-sm" onclick="openDogForm(${c.id})">+ Add</button>
+          </div>
+          ${c.dogs.length ? c.dogs.map(d => `
+            <div class="dog-row">
+              <div>
+                <div class="dog-info"><span class="dog-name">🐕 ${esc(d.name)}</span>${d.breed ? '<span class="dog-breed">' + esc(d.breed) + '</span>' : ''}</div>
+                ${d.notes ? '<div class="dog-notes">' + esc(d.notes) + '</div>' : ''}
+              </div>
+              <div class="dog-actions">
+                <button class="btn btn-outline btn-sm" onclick="openDogForm(${c.id},${d.id})">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteDog(${d.id})">Del</button>
+              </div>
+            </div>
+          `).join('') : '<div style="font-size:.75rem;color:var(--g-text-sec);padding:.3rem 0">No dogs yet</div>'}
+        </div>
+        <div class="detail-actions">
+          <button class="btn btn-primary btn-sm" onclick="openEmailCompose(${c.id}, '${esc(c.first_name)}', '${esc(c.last_name)}', '${esc(c.email || '')}')">✉️ Email</button>
+          <button class="btn btn-primary btn-sm" onclick="openDocGenerator(${c.id},'invoice')">📄 Invoice</button>
+          <button class="btn btn-outline btn-sm" onclick="openDocGenerator(${c.id},'proposal')">📋 Proposal</button>
           <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${c.id})">Delete Client</button>
         </div>
+        <div id="custDocs-${c.id}"></div>
+        <div id="custEmails-${c.id}"></div>
       </div>
     `;
+    loadCustomerDocs(c.id);
+    if (c.email) loadEmailHistory(c.id, c.email);
+    loadNotes(c.id);
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function loadCustomerDocs(customerId) {
+  const container = document.getElementById('custDocs-' + customerId);
+  if (!container) return;
+  try {
+    const docs = await api('/documents/' + customerId);
+    if (!docs.length) return;
+    container.innerHTML = `
+      <div class="detail-section">
+        <div class="detail-section-header"><span class="detail-section-title">Documents</span></div>
+        ${docs.map(d => `
+          <div class="doc-row">
+            <div class="doc-info">
+              <div class="doc-name">${d.type === 'proposal' ? '📋' : '📄'} ${esc(d.filename)}</div>
+              <div class="doc-meta">${d.type.charAt(0).toUpperCase() + d.type.slice(1)} · ${d.doc_number} · ${fmtDate(d.created_at)}</div>
+            </div>
+            <div class="doc-links">
+              <a href="/invoices/${encodeURIComponent(d.filename)}.pdf" target="_blank" class="btn btn-primary btn-sm">PDF</a>
+              <a href="/invoices/${encodeURIComponent(d.filename)}.html" target="_blank" class="btn btn-outline btn-sm">View</a>
+              <button class="btn btn-danger btn-sm" onclick="deleteDocument(${d.id}, ${customerId})" title="Delete">🗑</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) { /* silent */ }
+}
+
+async function deleteDocument(docId, customerId) {
+  if (!confirm('Delete this document? This will remove the PDF and HTML files permanently.')) return;
+  try {
+    await api('/documents/' + docId, { method: 'DELETE' });
+    toast('Document deleted');
+    loadCustomerDocs(customerId);
   } catch (e) { toast(e.message, 'err'); }
 }
 
@@ -105,7 +201,12 @@ function openCustomerForm(id) {
         <div class="form-group"><label>Email</label><input name="email" type="email" value="${esc(c.email || '')}"></div>
         <div class="form-group"><label>Phone</label><input name="phone" type="tel" value="${esc(c.phone || '')}"></div>
         <div class="form-group"><label>Address</label><input name="address" value="${esc(c.address || '')}"></div>
-        <div class="form-group"><label>Notes</label><textarea name="notes">${esc(c.notes || '')}</textarea></div>
+        <div class="form-group"><label>Rate ($)</label><input name="rate" type="number" step="0.01" min="0" placeholder="e.g. 25.00" value="${c.rate != null ? c.rate : ''}"></div>
+        <div class="form-group"><label>Status</label><select name="status">
+          <option value="active"${(c.status||'active')==='active'?' selected':''}>Active Client</option>
+          <option value="prospect"${c.status==='prospect'?' selected':''}>Prospect</option>
+          <option value="inactive"${c.status==='inactive'?' selected':''}>Inactive</option>
+        </select></div>
         <div class="form-actions">
           <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
           <button type="submit" class="btn btn-primary">${isEdit ? 'Save' : 'Add Client'}</button>
@@ -180,4 +281,227 @@ async function deleteCustomer(id) {
 function debounce(fn, ms) {
   let t;
   return function() { clearTimeout(t); t = setTimeout(fn, ms); };
+}
+
+function openEmailCompose(customerId, firstName, lastName, email) {
+  if (!email) {
+    toast('This client has no email address', 'err');
+    return;
+  }
+  // Fetch full customer data for AI context
+  api('/customers/' + customerId).then(c => {
+    const dogNames = c.dogs.map(d => d.name + (d.breed ? ' (' + d.breed + ')' : '')).join(', ');
+
+    openModal(`
+      <div class="modal-header"><h2>Email ${esc(firstName)}</h2><button class="modal-close">&times;</button></div>
+      <form id="emailForm">
+        <div class="form-group">
+          <label>To</label>
+          <input name="to" type="email" value="${esc(email)}" required>
+        </div>
+        <div class="form-group">
+          <label>Subject</label>
+          <input name="subject" id="emailSubject" required>
+        </div>
+        <div class="form-group">
+          <label>Message</label>
+          <textarea name="body" id="emailBody" rows="8" placeholder="Type your message..."></textarea>
+        </div>
+        <div id="aiDraftSection">
+          <button type="button" class="btn btn-outline btn-sm" id="aiDraftToggle" onclick="toggleAiDraft()">🤖 Help me write this</button>
+          <div id="aiDraftInput" style="display:none;margin-top:8px;">
+            <div class="form-group" style="margin-bottom:8px;">
+              <input id="aiPrompt" placeholder="e.g. welcome email, mention their dogs, excited to work together" style="width:100%;">
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="aiDraftBtn" onclick="generateDraft(${customerId})">Generate Draft</button>
+            <span id="aiDraftStatus" style="font-size:.75rem;color:var(--text-soft);margin-left:8px;"></span>
+          </div>
+        </div>
+        <div class="form-actions" style="margin-top:16px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="emailSendBtn">Send Email</button>
+        </div>
+      </form>
+    `);
+
+    // Fetch notes from timeline for AI context
+    api('/customers/' + customerId + '/notes').then(notes => {
+      const notesText = notes.map(n => fmtDate(n.created_at) + ': ' + n.text).join('\n\n');
+      window._emailContext = {
+        client_name: firstName + ' ' + lastName,
+        first_name: firstName,
+        dogs: dogNames,
+        notes: notesText,
+        business: 'Bridgeville Bark & Stroll'
+      };
+    }).catch(() => {
+      window._emailContext = {
+        client_name: firstName + ' ' + lastName,
+        first_name: firstName,
+        dogs: dogNames,
+        notes: '',
+        business: 'Bridgeville Bark & Stroll'
+      };
+    });
+
+    document.getElementById('emailForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('emailSendBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      const fd = new FormData(e.target);
+      const body = Object.fromEntries(fd);
+      try {
+        await api('/email/send', { method: 'POST', body });
+        closeModal();
+        toast('Email sent to ' + body.to);
+        if (_expandedCustomer) toggleCustomer(_expandedCustomer, true);
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Send Email';
+        toast(err.message, 'err');
+      }
+    };
+  });
+}
+
+function toggleAiDraft() {
+  const input = document.getElementById('aiDraftInput');
+  const toggle = document.getElementById('aiDraftToggle');
+  if (input.style.display === 'none') {
+    input.style.display = 'block';
+    toggle.style.display = 'none';
+    document.getElementById('aiPrompt').focus();
+  }
+}
+
+async function generateDraft(customerId) {
+  const promptEl = document.getElementById('aiPrompt');
+  const statusEl = document.getElementById('aiDraftStatus');
+  const btn = document.getElementById('aiDraftBtn');
+  const prompt = promptEl.value.trim();
+  if (!prompt) {
+    toast('Type what you want to say first', 'err');
+    return;
+  }
+  btn.disabled = true;
+  statusEl.textContent = 'Generating draft...';
+  try {
+    const result = await api('/email/draft', {
+      method: 'POST',
+      body: { prompt, context: window._emailContext || {} }
+    });
+    document.getElementById('emailBody').value = result.body;
+    if (result.subject) document.getElementById('emailSubject').value = result.subject;
+    statusEl.textContent = 'Draft loaded — edit as needed';
+    btn.disabled = false;
+  } catch (err) {
+    statusEl.textContent = '';
+    btn.disabled = false;
+    toast(err.message, 'err');
+  }
+}
+
+async function loadEmailHistory(customerId, email) {
+  const container = document.getElementById('custEmails-' + customerId);
+  if (!container) return;
+  try {
+    const result = await api('/email/log/' + encodeURIComponent(email));
+    if (!result.emails || !result.emails.length) return;
+    container.innerHTML = `
+      <div class="detail-section">
+        <div class="detail-section-header" onclick="this.parentElement.classList.toggle('collapsed')" style="cursor:pointer;">
+          <span class="detail-section-title">Email History (${result.emails.length})</span>
+          <span class="collapse-icon">▾</span>
+        </div>
+        <div class="collapsible-content">
+          ${result.emails.map(e => `
+            <div class="email-log-row">
+              <div class="email-log-info">
+                <div class="email-log-subject">${esc(e.subject)}</div>
+                <div class="email-log-meta">
+                  ${fmtDate(e.sent_at)} · Sent by ${esc(e.sent_by || 'System')}
+                </div>
+                ${e.body_preview ? '<div class="email-log-preview">' + esc(e.body_preview) + '</div>' : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } catch (e) { /* silent */ }
+}
+
+async function loadNotes(customerId) {
+  const container = document.getElementById('notesList-' + customerId);
+  if (!container) return;
+  try {
+    const notes = await api('/customers/' + customerId + '/notes');
+    if (!notes.length) {
+      container.innerHTML = '<div style="font-size:.75rem;color:var(--text-soft);padding:.3rem 0">No notes yet</div>';
+      return;
+    }
+    container.innerHTML = notes.map(n => {
+      let attachHtml = '';
+      if (n.attachment_file) {
+        const url = '/admin/api/attachments/' + encodeURIComponent(n.attachment_file);
+        const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(n.attachment_name || '');
+        if (isImage) {
+          attachHtml = '<div class="note-attachment"><img src="' + url + '" alt="' + esc(n.attachment_name) + '" class="note-image" onclick="window.open(this.src)"></div>';
+        } else {
+          attachHtml = '<div class="note-attachment"><a href="' + url + '" target="_blank" class="note-file-link">📎 ' + esc(n.attachment_name) + '</a></div>';
+        }
+      }
+      return `
+        <div class="note-entry">
+          <div class="note-header">
+            <span class="note-date">${fmtDate(n.created_at)}</span>
+            <button class="note-delete" onclick="deleteNote(${n.id}, ${customerId})" title="Delete note">&times;</button>
+          </div>
+          ${n.text ? '<div class="note-text">' + esc(n.text) + '</div>' : ''}
+          ${attachHtml}
+        </div>
+      `;
+    }).join('');
+  } catch (e) { /* silent */ }
+}
+
+async function addNote(customerId) {
+  const input = document.getElementById('noteInput-' + customerId);
+  const fileInput = document.getElementById('noteFile-' + customerId);
+  const text = input.value.trim();
+  const file = fileInput && fileInput.files[0];
+  if (!text && !file) { toast('Type a note or attach a file', 'err'); return; }
+
+  const fd = new FormData();
+  if (text) fd.append('text', text);
+  if (file) fd.append('attachment', file);
+
+  try {
+    const r = await fetch('/admin/api/customers/' + customerId + '/notes', { method: 'POST', body: fd });
+    if (r.status === 401) { window.location.href = '/portal'; return; }
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Request failed');
+    input.value = '';
+    if (fileInput) { fileInput.value = ''; updateFileLabel(customerId); }
+    toast('Note added');
+    loadNotes(customerId);
+  } catch (err) { toast(err.message, 'err'); }
+}
+
+function updateFileLabel(customerId) {
+  const fileInput = document.getElementById('noteFile-' + customerId);
+  const label = document.getElementById('noteFileName-' + customerId);
+  if (fileInput && label) {
+    label.textContent = fileInput.files[0] ? fileInput.files[0].name : '';
+  }
+}
+
+async function deleteNote(noteId, customerId) {
+  if (!await confirmDialog('Delete this note?')) return;
+  try {
+    await api('/notes/' + noteId, { method: 'DELETE' });
+    toast('Note deleted');
+    loadNotes(customerId);
+  } catch (err) { toast(err.message, 'err'); }
 }

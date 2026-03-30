@@ -7,10 +7,13 @@
     "init-db": "node init-db.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.79.0",
     "better-sqlite3": "^11.0.0",
     "dotenv": "^16.4.0",
     "express": "^4.21.0",
     "express-session": "^1.18.0",
-    "nodemailer": "^6.9.0"
+    "multer": "^2.1.1",
+    "nodemailer": "^6.9.0",
+    "puppeteer-core": "^24.39.1"
   }
 }

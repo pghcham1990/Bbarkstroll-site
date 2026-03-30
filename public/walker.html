@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Bark & Stroll — Walker Portal</title>
+<link rel="icon" type="image/png" href="https://barkstroll.com/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/static/css/style.css">
+<style>
+.request-card{background:var(--white);border-radius:var(--radius);padding:1rem;margin-bottom:.75rem;border:1px solid #eee;border-left:4px solid var(--gold)}
+.request-card .req-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem}
+.request-card .req-title{font-weight:600;font-size:.95rem}
+.request-card .req-meta{font-size:.8rem;color:var(--text-soft);margin-bottom:.5rem}
+.request-card .req-notes{font-size:.8rem;color:var(--text-soft);font-style:italic;margin-bottom:.75rem}
+.request-card .req-actions{display:flex;gap:.5rem}
+.badge-count{background:var(--danger);color:var(--white);font-size:.6rem;font-weight:700;min-width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;position:relative;top:-6px;left:-2px}
+.schedule-card{background:var(--white);border-radius:var(--radius-sm);padding:.85rem 1rem;margin-bottom:.6rem;border:1px solid #eee;border-left:4px solid var(--forest)}
+.schedule-card .sch-time{font-weight:700;font-size:.85rem;color:var(--forest);margin-bottom:.15rem}
+.schedule-card .sch-title{font-weight:600;font-size:.9rem}
+.schedule-card .sch-sub{font-size:.78rem;color:var(--text-soft)}
+.report-btn{position:fixed;bottom:68px;right:.75rem;background:var(--white);border:1.5px solid #ddd;color:var(--text-soft);font-size:.7rem;font-weight:500;padding:.35rem .7rem;border-radius:var(--radius-sm);cursor:pointer;z-index:90;font-family:inherit;transition:all .15s}
+.report-btn:hover{border-color:var(--danger);color:var(--danger)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-title">Bark & Stroll</span>
+  <button class="topbar-btn" id="logoutBtn">Sign Out</button>
+</div>
+
+<div class="content" id="content">
+  <div class="empty"><div class="empty-icon">🐾</div><div class="empty-text">Loading...</div></div>
+</div>
+
+<nav class="bottomnav">
+  <button class="nav-tab active" data-view="calendar"><span class="nav-icon">📅</span>Calendar</button>
+  <button class="nav-tab" data-view="requests"><span class="nav-icon">📋</span>Requests<span class="badge-count" id="reqBadge" style="display:none">0</span></button>
+  <button class="nav-tab" data-view="schedule"><span class="nav-icon">🐕</span>My Schedule</button>
+</nav>
+
+<button class="report-btn" id="reportBtn">Report Issue</button>
+
+<div class="modal-overlay" id="modal"></div>
+<div class="toast-container" id="toasts"></div>
+
+<script src="/admin/static/js/walker-app.js"></script>
+</body>
+</html>

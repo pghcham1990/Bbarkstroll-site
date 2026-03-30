@@ -1,16 +1,127 @@
 /* === Dashboard View === */
+
+// Weather condition codes → emoji + label
+const WMO_CODES = {
+  0:'☀️ Clear',1:'🌤 Mostly Clear',2:'⛅ Partly Cloudy',3:'☁️ Overcast',
+  45:'🌫 Foggy',48:'🌫 Rime Fog',51:'🌦 Light Drizzle',53:'🌦 Drizzle',55:'🌧 Heavy Drizzle',
+  61:'🌧 Light Rain',63:'🌧 Rain',65:'🌧 Heavy Rain',66:'🌨 Freezing Rain',67:'🌨 Heavy Freezing Rain',
+  71:'🌨 Light Snow',73:'🌨 Snow',75:'❄️ Heavy Snow',77:'❄️ Snow Grains',
+  80:'🌦 Light Showers',81:'🌧 Showers',82:'🌧 Heavy Showers',
+  85:'🌨 Snow Showers',86:'❄️ Heavy Snow Showers',95:'⛈ Thunderstorm',96:'⛈ Hail Storm',99:'⛈ Heavy Hail'
+};
+
+async function fetchWeather() {
+  try {
+    // Bridgeville PA (15017): lat 40.3562, lon -80.1106
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=40.3562&longitude=-80.1106&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America/New_York&forecast_days=1');
+    return await r.json();
+  } catch { return null; }
+}
+
+function renderWeatherWidget(weather) {
+  if (!weather || !weather.current) {
+    return '<div class="weather-widget"><div class="weather-unavailable">Weather unavailable</div></div>';
+  }
+  const c = weather.current;
+  const d = weather.daily;
+  const desc = WMO_CODES[c.weather_code] || 'Unknown';
+  const emoji = desc.split(' ')[0];
+  const label = desc.split(' ').slice(1).join(' ');
+  const hi = d ? Math.round(d.temperature_2m_max[0]) : '';
+  const lo = d ? Math.round(d.temperature_2m_min[0]) : '';
+  const rain = d ? d.precipitation_probability_max[0] : 0;
+
+  return `
+    <div class="weather-widget">
+      <div class="weather-main">
+        <div class="weather-emoji">${emoji}</div>
+        <div class="weather-temp">${Math.round(c.temperature_2m)}°F</div>
+      </div>
+      <div class="weather-details">
+        <div class="weather-condition">${label}</div>
+        <div class="weather-location">Bridgeville, PA</div>
+        <div class="weather-meta">
+          <span>Feels ${Math.round(c.apparent_temperature)}°</span>
+          <span>💧 ${c.relative_humidity_2m}%</span>
+          <span>💨 ${Math.round(c.wind_speed_10m)} mph</span>
+        </div>
+        <div class="weather-hilo">
+          <span class="weather-hi">H: ${hi}°</span>
+          <span class="weather-lo">L: ${lo}°</span>
+          ${rain > 0 ? `<span class="weather-rain">🌧 ${rain}%</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderEarningsWidget(data) {
+  if (!data) return '';
+  const walkers = data.walkers || [];
+
+  let rows = walkers.map(w => {
+    const label = w.isScott ? `${w.name} <span class="earnings-you">(you)</span>` : w.name;
+    return `
+      <div class="earnings-row">
+        <div class="earnings-name">${label}</div>
+        <div class="earnings-walks">${w.walks_completed} walk${w.walks_completed !== 1 ? 's' : ''}</div>
+        <div class="earnings-amount">$${w.earned_completed.toFixed(0)}</div>
+      </div>`;
+  }).join('');
+
+  // House row
+  rows += `
+    <div class="earnings-row earnings-house">
+      <div class="earnings-name">🏠 Bark & Stroll</div>
+      <div class="earnings-walks">${data.total_walks_completed} walk${data.total_walks_completed !== 1 ? 's' : ''} × $${data.house_cut_per_walk}</div>
+      <div class="earnings-amount">$${data.house_total_completed.toFixed(0)}</div>
+    </div>`;
+
+  // Projected section if there are scheduled walks beyond completed
+  const hasProjected = data.total_walks_all > data.total_walks_completed;
+
+  return `
+    <div class="glass-panel">
+      <div class="glass-panel-header">
+        <h2 class="glass-panel-title">${data.year} Earnings</h2>
+      </div>
+      <div class="glass-panel-body">
+        <div class="earnings-section-label">Completed</div>
+        <div class="earnings-table">${rows}</div>
+        ${hasProjected ? `
+          <div class="earnings-divider"></div>
+          <div class="earnings-section-label">Projected (incl. scheduled)</div>
+          <div class="earnings-table">
+            ${walkers.map(w => `
+              <div class="earnings-row earnings-projected">
+                <div class="earnings-name">${w.name}</div>
+                <div class="earnings-walks">${w.walks_scheduled} walk${w.walks_scheduled !== 1 ? 's' : ''}</div>
+                <div class="earnings-amount">$${w.earned_all.toFixed(0)}</div>
+              </div>`).join('')}
+            <div class="earnings-row earnings-house earnings-projected">
+              <div class="earnings-name">🏠 Bark & Stroll</div>
+              <div class="earnings-walks">${data.total_walks_all} walks × $${data.house_cut_per_walk}</div>
+              <div class="earnings-amount">$${data.house_total_projected.toFixed(0)}</div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    </div>`;
+}
+
 async function render_dashboard(el) {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
   const weekEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).toISOString();
 
-  let todayAppts = [], weekAppts = [], customers = [];
+  let todayAppts = [], weekAppts = [], customers = [], earnings = null, weather = null;
   try {
-    [todayAppts, weekAppts, customers] = await Promise.all([
+    [todayAppts, weekAppts, customers, earnings, weather] = await Promise.all([
       api('/appointments?start=' + todayStart + '&end=' + todayEnd),
       api('/appointments?start=' + todayStart + '&end=' + weekEnd),
-      api('/customers')
+      api('/customers'),
+      api('/earnings?year=' + now.getFullYear()),
+      fetchWeather()
     ]);
   } catch (e) { el.innerHTML = '<div class="empty"><div class="empty-text">Error loading data</div></div>'; return; }
 
@@ -20,33 +131,65 @@ async function render_dashboard(el) {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const name = App.user ? App.user.display_name : '';
 
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dateStr = days[now.getDay()] + ', ' + months[now.getMonth()] + ' ' + now.getDate();
+
   el.innerHTML = `
-    <p class="section-label">Dashboard</p>
-    <h1 class="section-title">${greeting}, ${esc(name)}</h1>
-    <div class="stats-row">
-      <div class="stat-card"><div class="stat-num">${scheduled.length}</div><div class="stat-label">Today</div></div>
-      <div class="stat-card"><div class="stat-num">${weekScheduled.length}</div><div class="stat-label">This Week</div></div>
-      <div class="stat-card"><div class="stat-num">${customers.length}</div><div class="stat-label">Clients</div></div>
+    <div class="dash-welcome">
+      <p class="dash-date">${dateStr}</p>
+      <h1 class="dash-greeting">${greeting}, ${esc(name)}</h1>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-      <h2 style="font-family:'DM Serif Display',serif;font-size:1.05rem">Today's Appointments</h2>
-      <button class="btn btn-primary btn-sm" onclick="navigate('calendar')">+ New</button>
+
+    ${renderWeatherWidget(weather)}
+
+    <div class="dash-stats">
+      <div class="dash-stat">
+        <div class="dash-stat-icon gold">📅</div>
+        <div>
+          <div class="dash-stat-num">${scheduled.length}</div>
+          <div class="dash-stat-label">Today's Walks</div>
+        </div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon green">📊</div>
+        <div>
+          <div class="dash-stat-num">${weekScheduled.length}</div>
+          <div class="dash-stat-label">This Week</div>
+        </div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-icon blue">👥</div>
+        <div>
+          <div class="dash-stat-num">${customers.length}</div>
+          <div class="dash-stat-label">Active Clients</div>
+        </div>
+      </div>
     </div>
-    <div id="dashAppts"></div>
+
+    <div class="glass-panel">
+      <div class="glass-panel-header">
+        <h2 class="glass-panel-title">Today's Schedule</h2>
+        <button class="btn btn-primary btn-sm" onclick="navigate('calendar')">+ New Walk</button>
+      </div>
+      <div class="glass-panel-body" id="dashAppts"></div>
+    </div>
+
+    ${renderEarningsWidget(earnings)}
   `;
 
   const container = document.getElementById('dashAppts');
   if (scheduled.length === 0) {
-    container.innerHTML = '<div class="empty" style="padding:2rem"><div class="empty-icon">☀️</div><div class="empty-text">No appointments today</div></div>';
-    return;
-  }
-  container.innerHTML = scheduled.map(a => `
-    <div class="appt-card">
-      <div class="appt-time">${fmtTime(a.start_time)}</div>
-      <div class="appt-body">
-        <div class="appt-title">🐾 ${esc(a.dog_name)} — ${esc(a.service_name)}</div>
-        <div class="appt-sub">${esc(a.customer_name)} · ${esc(a.employee_name)}</div>
+    container.innerHTML = '<div class="empty" style="padding:2rem 1rem"><div class="empty-icon">☀️</div><div class="empty-text">No walks scheduled today</div></div>';
+  } else {
+    container.innerHTML = scheduled.sort((a,b) => a.start_time.localeCompare(b.start_time)).map(a => `
+      <div class="appt-card" style="cursor:pointer" onclick="navigate('calendar')">
+        <div class="appt-time">${fmtTime(a.start_time)}</div>
+        <div class="appt-body">
+          <div class="appt-title">${esc(a.dog_name || a.dog_names)} — ${esc(a.service_name)}</div>
+          <div class="appt-sub">${esc(a.customer_name)} · ${esc(a.employee_name)}</div>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
+  }
 }

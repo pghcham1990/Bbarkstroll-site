@@ -8,14 +8,16 @@ async function render_calendar(el) {
   _calDay = now.getDate();
 
   el.innerHTML = `
-    <p class="section-label">Schedule</p>
-    <h1 class="section-title">Calendar</h1>
-    <div class="cal-nav">
-      <button id="calPrev">&larr;</button>
-      <h2 id="calLabel"></h2>
-      <button id="calNext">&rarr;</button>
+    <div class="glass-panel" style="margin-bottom:1.25rem">
+      <div style="padding:1rem 1.25rem">
+        <div class="cal-nav">
+          <button id="calPrev">&larr;</button>
+          <h2 id="calLabel"></h2>
+          <button id="calNext">&rarr;</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
     </div>
-    <div class="cal-grid" id="calGrid"></div>
     <div id="dayAppts"></div>
   `;
 
@@ -36,12 +38,10 @@ async function renderCal() {
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('calLabel').textContent = months[_calMonth] + ' ' + _calYear;
 
-  // Fetch month's appointments
   const start = new Date(_calYear, _calMonth, 1).toISOString();
   const end = new Date(_calYear, _calMonth + 1, 1).toISOString();
   try { _calAppts = await api('/appointments?start=' + start + '&end=' + end); } catch { _calAppts = []; }
 
-  // Build grid
   const grid = document.getElementById('calGrid');
   const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
@@ -52,12 +52,10 @@ async function renderCal() {
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === _calYear && today.getMonth() === _calMonth;
 
-  // Previous month filler
   for (let i = firstDay - 1; i >= 0; i--) {
     html += `<div class="cal-day other-month">${prevDays - i}</div>`;
   }
 
-  // Current month
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const hasAppts = _calAppts.some(a => a.start_time && a.start_time.startsWith(dateStr) && a.status !== 'cancelled');
@@ -66,7 +64,6 @@ async function renderCal() {
     html += `<div class="cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}" data-day="${d}" onclick="selectDay(${d})">${d}${hasAppts ? '<div class="cal-dot"></div>' : ''}</div>`;
   }
 
-  // Next month filler
   const totalCells = firstDay + daysInMonth;
   const remaining = (7 - totalCells % 7) % 7;
   for (let i = 1; i <= remaining; i++) {
@@ -87,28 +84,60 @@ function selectDay(d) {
 
 function renderDayAppts() {
   const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(_calDay).padStart(2,'0')}`;
-  const dayAppts = _calAppts.filter(a => a.start_time && a.start_time.startsWith(dateStr)).sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const dayAppts = _calAppts.filter(a => a.start_time && a.start_time.startsWith(dateStr) && a.status !== 'cancelled' && a.status !== 'deleted').sort((a, b) => a.start_time.localeCompare(b.start_time));
   const container = document.getElementById('dayAppts');
 
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const label = months[_calMonth] + ' ' + _calDay + ', ' + _calYear;
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const selDate = new Date(_calYear, _calMonth, _calDay);
+  const dayLabel = dayNames[selDate.getDay()] + ', ' + monthNames[_calMonth] + ' ' + _calDay;
+
+  let html = `<div class="cal-day-header"><span class="cal-day-label">${dayLabel}</span></div>`;
 
   if (!dayAppts.length) {
-    container.innerHTML = `<p style="font-size:.85rem;color:var(--text-soft);text-align:center;padding:1.5rem 0">No appointments on ${label}</p>`;
-    return;
-  }
-
-  container.innerHTML = `<p style="font-size:.8rem;font-weight:600;color:var(--text-soft);margin-bottom:.5rem">${label} — ${dayAppts.length} appointment${dayAppts.length > 1 ? 's' : ''}</p>` +
-    dayAppts.map(a => `
+    html += `<p class="cal-no-appts">No walks scheduled</p>`;
+  } else {
+    html += dayAppts.map(a => `
       <div class="appt-card" onclick="viewAppt(${a.id})" style="cursor:pointer">
         <div class="appt-time">${fmtTime(a.start_time)}</div>
         <div class="appt-body">
-          <div class="appt-title">🐾 ${esc(a.dog_name)} — ${esc(a.service_name)}</div>
-          <div class="appt-sub">${esc(a.customer_name)} · ${esc(a.employee_name)}</div>
-          <span class="appt-status ${a.status}">${a.status}</span>
+          <div class="appt-title">${esc(a.dog_names)}</div>
+          <div class="appt-sub">${esc(a.service_name)} &middot; ${esc(a.employee_name)}</div>
         </div>
       </div>
     `).join('');
+  }
+
+  // Coming Up
+  const upcoming = _calAppts.filter(a => {
+    if (!a.start_time || a.status === 'cancelled' || a.status === 'deleted') return false;
+    return a.start_time.substring(0, 10) > dateStr;
+  }).sort((a, b) => a.start_time.localeCompare(b.start_time)).slice(0, 8);
+
+  if (upcoming.length) {
+    html += `<p class="cal-upcoming-label">Coming Up</p>`;
+    let lastDate = '';
+    for (const a of upcoming) {
+      const apptDate = a.start_time.substring(0, 10);
+      if (apptDate !== lastDate) {
+        const [y, m, d] = apptDate.split('-').map(Number);
+        const dt = new Date(y, m - 1, d);
+        html += `<p class="cal-upcoming-date">${dayNames[dt.getDay()].substring(0, 3)}, ${monthNames[m - 1]} ${d}</p>`;
+        lastDate = apptDate;
+      }
+      html += `
+        <div class="appt-card appt-card-upcoming" onclick="viewAppt(${a.id})" style="cursor:pointer">
+          <div class="appt-time">${fmtTime(a.start_time)}</div>
+          <div class="appt-body">
+            <div class="appt-title">${esc(a.dog_names)}</div>
+            <div class="appt-sub">${esc(a.service_name)} &middot; ${esc(a.employee_name)}</div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  container.innerHTML = html;
 }
 
 async function viewAppt(id) {
@@ -120,10 +149,10 @@ async function viewAppt(id) {
       <div class="detail-row"><span class="detail-label">Time</span><span>${fmtTime(a.start_time)} — ${fmtTime(a.end_time)}</span></div>
       <div class="detail-row"><span class="detail-label">Service</span><span>${esc(a.service_name)}</span></div>
       <div class="detail-row"><span class="detail-label">Client</span><span>${esc(a.customer_name)}</span></div>
-      <div class="detail-row"><span class="detail-label">Dog</span><span>${esc(a.dog_name)}${a.dog_breed ? ' (' + esc(a.dog_breed) + ')' : ''}</span></div>
+      <div class="detail-row"><span class="detail-label">${a.dogs && a.dogs.length > 1 ? 'Dogs' : 'Dog'}</span><span>${esc(a.dog_names_with_breed)}</span></div>
       <div class="detail-row"><span class="detail-label">Team Member</span><span>${esc(a.employee_name)}</span></div>
       ${a.customer_address ? `<div class="detail-row"><span class="detail-label">Address</span><span>${esc(a.customer_address)}</span></div>` : ''}
-      ${a.notes ? `<div class="detail-row"><span class="detail-label">Notes</span><span>${esc(a.notes)}</span></div>` : ''}
+      ${a.notes ? `<div class="detail-row detail-block"><span class="detail-label">Notes</span><span class="detail-value">${esc(a.notes)}</span></div>` : ''}
       <div class="detail-row"><span class="detail-label">Status</span><span class="appt-status ${a.status}">${a.status}</span></div>
       <div class="detail-row"><span class="detail-label">Email Sent</span><span>${a.email_sent ? '✅ Yes' : '❌ No'}</span></div>
       <div class="form-actions" style="margin-top:1rem">
@@ -147,7 +176,8 @@ async function cancelAppt(id) {
 async function completeAppt(id) {
   try {
     const a = await api('/appointments/' + id);
-    await api('/appointments/' + id, { method: 'PUT', body: { ...a, status: 'completed' } });
+    const dog_ids = a.dogs ? a.dogs.map(d => d.id) : (a.dog_id ? [a.dog_id] : []);
+    await api('/appointments/' + id, { method: 'PUT', body: { ...a, dog_ids, status: 'completed' } });
     closeModal();
     toast('Marked as complete');
     renderCal();
@@ -180,10 +210,8 @@ async function openApptForm() {
         </select>
       </div>
       <div class="form-group">
-        <label>Dog *</label>
-        <select name="dog_id" id="apptDog" required>
-          <option value="">Select client first...</option>
-        </select>
+        <label>Dogs *</label>
+        <div id="apptDogs" style="padding:4px 0"><span style="color:var(--g-text-sec);font-size:.85rem">Select client first...</span></div>
       </div>
       <div class="form-group">
         <label>Team Member *</label>
@@ -209,28 +237,29 @@ async function openApptForm() {
     </form>
   `);
 
-  // Load dogs when customer changes
   document.getElementById('apptCustomer').onchange = async function() {
-    const dogSelect = document.getElementById('apptDog');
-    dogSelect.innerHTML = '<option value="">Loading...</option>';
-    if (!this.value) { dogSelect.innerHTML = '<option value="">Select client first...</option>'; return; }
+    const dogContainer = document.getElementById('apptDogs');
+    dogContainer.innerHTML = '<span style="color:var(--g-text-sec);font-size:.85rem">Loading...</span>';
+    if (!this.value) { dogContainer.innerHTML = '<span style="color:var(--g-text-sec);font-size:.85rem">Select client first...</span>'; return; }
     try {
       const dogs = await api('/customers/' + this.value + '/dogs');
       if (!dogs.length) {
-        dogSelect.innerHTML = '<option value="">No dogs — add one in Clients tab</option>';
+        dogContainer.innerHTML = '<span style="color:var(--g-text-sec);font-size:.85rem">No dogs — add one in Clients tab</span>';
         return;
       }
-      dogSelect.innerHTML = dogs.map(d => `<option value="${d.id}">${esc(d.name)}${d.breed ? ' (' + esc(d.breed) + ')' : ''}</option>`).join('');
-    } catch { dogSelect.innerHTML = '<option value="">Error loading dogs</option>'; }
+      dogContainer.innerHTML = dogs.map(d =>
+        `<label style="display:block;padding:4px 0;cursor:pointer;color:var(--g-text)"><input type="checkbox" name="dog_ids" value="${d.id}" checked style="margin-right:6px">${esc(d.name)}${d.breed ? ' (' + esc(d.breed) + ')' : ''}</label>`
+      ).join('');
+    } catch { dogContainer.innerHTML = '<span style="color:var(--g-text-sec);font-size:.85rem">Error loading dogs</span>'; }
   };
 
   document.getElementById('apptForm').onsubmit = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const data = Object.fromEntries(fd);
-    if (!data.customer_id || !data.dog_id) { toast('Select a client and dog', 'err'); return; }
+    const dog_ids = [...document.querySelectorAll('#apptDogs input[name="dog_ids"]:checked')].map(cb => parseInt(cb.value));
+    if (!data.customer_id || !dog_ids.length) { toast('Select a client and at least one dog', 'err'); return; }
 
-    // Build start/end times
     const svc = document.getElementById('apptService');
     const dur = parseInt(svc.selectedOptions[0]?.dataset.dur || '30');
     const startDt = new Date(data.date + 'T' + data.time);
@@ -238,7 +267,7 @@ async function openApptForm() {
 
     const body = {
       customer_id: parseInt(data.customer_id),
-      dog_id: parseInt(data.dog_id),
+      dog_ids,
       employee_id: parseInt(data.employee_id),
       service_id: parseInt(data.service_id),
       start_time: startDt.toISOString(),
@@ -249,8 +278,7 @@ async function openApptForm() {
     try {
       const result = await api('/appointments', { method: 'POST', body });
       closeModal();
-      toast(result.email_sent ? 'Appointment created & email sent!' : 'Appointment created (email not configured yet)');
-      // Jump to the appointment date
+      toast(result.email_sent ? 'Appointment created & email sent!' : result.email_queued ? 'Appointment created! Email will send at 8am' : 'Appointment created (email not configured yet)');
       _calYear = startDt.getFullYear();
       _calMonth = startDt.getMonth();
       _calDay = startDt.getDate();

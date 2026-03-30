@@ -1,4 +1,19 @@
 /* === Employees View === */
+
+const _teamColors = [
+  { bg: 'rgba(196,164,78,0.15)', text: '#c4a44e', border: 'rgba(196,164,78,0.3)' },
+  { bg: 'rgba(46,204,113,0.15)', text: '#2ecc71', border: 'rgba(46,204,113,0.3)' },
+  { bg: 'rgba(52,152,219,0.15)', text: '#3498db', border: 'rgba(52,152,219,0.3)' },
+  { bg: 'rgba(155,89,182,0.15)', text: '#9b59b6', border: 'rgba(155,89,182,0.3)' },
+  { bg: 'rgba(230,126,34,0.15)', text: '#e67e22', border: 'rgba(230,126,34,0.3)' },
+];
+
+function getTeamColor(name) {
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return _teamColors[Math.abs(hash) % _teamColors.length];
+}
+
 async function render_employees(el) {
   el.innerHTML = `
     <p class="section-label">Manage</p>
@@ -24,19 +39,23 @@ async function loadEmployees() {
       container.innerHTML = '<div class="empty"><div class="empty-icon">🐕</div><div class="empty-text">No team members yet</div></div>';
       return;
     }
-    container.innerHTML = employees.map(e => `
-      <div class="list-item" style="${!e.active ? 'opacity:.5' : ''}">
-        <div class="list-icon">${e.active ? '🟢' : '⚪'}</div>
-        <div class="list-body">
-          <div class="list-title">${esc(e.first_name)} ${esc(e.last_name)}</div>
-          <div class="list-sub">${fmtPhone(e.phone) || e.email || 'No contact info'}${!e.active ? ' · Inactive' : ''}</div>
+    container.innerHTML = '<div class="team-grid">' + employees.map(e => {
+      const fullName = (e.first_name || '') + ' ' + (e.last_name || '');
+      const initials = ((e.first_name || '')[0] || '') + ((e.last_name || '')[0] || '');
+      const color = getTeamColor(fullName);
+      return `
+        <div class="team-card${!e.active ? ' inactive' : ''}">
+          <div class="team-avatar" style="background:${color.bg};color:${color.text};border-color:${color.border}">${esc(initials.toUpperCase())}</div>
+          <div class="team-name">${esc(e.first_name)} ${esc(e.last_name)}</div>
+          <div class="team-contact">${fmtPhone(e.phone) || e.email || 'No contact info'}</div>
+          <div class="team-status ${e.active ? 'active' : 'inactive'}">${e.active ? 'Active' : 'Inactive'}</div>
+          <div class="team-actions">
+            <button class="btn btn-outline btn-sm" onclick="openEmployeeForm(${e.id})">Edit</button>
+            ${e.active ? `<button class="btn btn-danger btn-sm" onclick="deactivateEmployee(${e.id})">Deactivate</button>` : ''}
+          </div>
         </div>
-        <div class="list-actions">
-          <button class="btn btn-outline btn-sm btn-icon" onclick="openEmployeeForm(${e.id})" title="Edit">✏️</button>
-          ${e.active ? `<button class="btn btn-danger btn-sm btn-icon" onclick="deactivateEmployee(${e.id})" title="Deactivate">✕</button>` : ''}
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('') + '</div>';
   } catch (e) { toast(e.message, 'err'); }
 }
 

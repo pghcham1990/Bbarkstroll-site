@@ -29,8 +29,8 @@ h1{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:.25rem}
 <body>
 <div class="card">
   <img class="logo" src="https://barkstroll.com/bridgeville-bark-stroll-logo.png" alt="Bark & Stroll">
-  <h1>Staff Portal</h1>
-  <p class="sub">Sign in to manage appointments</p>
+  <h1>Portal</h1>
+  <p class="sub">Sign in to your account</p>
   <form id="loginForm">
     <div class="field">
       <label for="username">Username</label>
@@ -59,7 +59,14 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
-    if (r.ok) { window.location.href = '/admin/app'; return; }
+    if (r.ok) {
+      const data = await r.json();
+      const role = data.user && data.user.role;
+      if (role === 'customer') { window.location.href = '/client'; }
+      else if (role === 'walker') { window.location.href = '/walker'; }
+      else { window.location.href = '/admin/app'; }
+      return;
+    }
     const data = await r.json();
     err.textContent = data.error || 'Invalid credentials';
   } catch {

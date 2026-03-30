@@ -57,6 +57,30 @@ router.post('/email/draft', async (req, res) => {
   }
 });
 
+// Bulk send email to multiple recipients
+router.post('/email/bulk', async (req, res) => {
+  try {
+    const { emails, subject, body } = req.body;
+    if (!emails || !emails.length || !subject || !body) {
+      return res.status(400).json({ error: 'emails array, subject, and body are required' });
+    }
+    const sent_by = req.session.user.display_name || req.session.user.username;
+    let sent = 0, failed = 0;
+    for (const to of emails) {
+      try {
+        await mailerFetch('/api/send', {
+          method: 'POST',
+          body: JSON.stringify({ to, subject, body, sent_by })
+        });
+        sent++;
+      } catch { failed++; }
+    }
+    res.json({ ok: true, sent, failed, total: emails.length });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // Email log for a recipient
 router.get('/email/log/:email', async (req, res) => {
   try {

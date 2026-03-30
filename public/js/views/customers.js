@@ -19,7 +19,10 @@ function getAvatarColor(name) {
 async function render_customers(el) {
   el.innerHTML = `
     <p class="section-label">Manage</p>
-    <h1 class="section-title">Clients</h1>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+      <h1 class="section-title" style="margin:0">Clients</h1>
+      <button class="btn btn-primary btn-sm" onclick="openMassEmail()">✉️ Mass Email</button>
+    </div>
     <div class="search-box"><input type="text" id="custSearch" placeholder="Search clients..."></div>
     <div id="custList"></div>
   `;
@@ -536,4 +539,155 @@ function viewEmail(customerId, index) {
       <div class="email-viewer-body">${bodyHtml}</div>
     </div>
   `);
+}
+
+// ===== MASS EMAIL =====
+
+async function openMassEmail() {
+  try {
+    const customers = await api('/customers');
+    if (!customers || !customers.length) { toast('No clients to email', 'err'); return; }
+
+    const withEmail = customers.filter(c => c.email);
+    if (!withEmail.length) { toast('No clients have email addresses', 'err'); return; }
+
+    const active = withEmail.filter(c => c.status === 'active');
+    const prospects = withEmail.filter(c => c.status === 'prospect');
+    const inactive = withEmail.filter(c => c.status === 'inactive');
+
+    openModal(`
+      <div class="compose-window">
+        <div class="compose-header">
+          <span class="compose-title">Mass Email</span>
+          <button class="modal-close compose-close">&times;</button>
+        </div>
+        <div style="padding:12px 16px;border-bottom:1px solid #e8eaed;">
+          <div style="margin-bottom:8px;font-size:.82rem;font-weight:600;color:#5f6368;">Select Recipients</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;" id="massFilterBtns">
+            <button class="mass-filter-btn active" data-filter="all" onclick="massFilterClick(this)">All (${withEmail.length})</button>
+            ${active.length ? '<button class="mass-filter-btn" data-filter="active" onclick="massFilterClick(this)">Active (' + active.length + ')</button>' : ''}
+            ${prospects.length ? '<button class="mass-filter-btn" data-filter="prospect" onclick="massFilterClick(this)">Prospects (' + prospects.length + ')</button>' : ''}
+            ${inactive.length ? '<button class="mass-filter-btn" data-filter="inactive" onclick="massFilterClick(this)">Inactive (' + inactive.length + ')</button>' : ''}
+          </div>
+          <div style="max-height:120px;overflow-y:auto;border:1px solid #e8eaed;border-radius:8px;padding:6px;" id="massRecipientList">
+            ${withEmail.map(c => `
+              <label style="display:flex;align-items:center;gap:8px;padding:4px 6px;font-size:.82rem;cursor:pointer;border-radius:4px;" class="mass-recipient" data-status="${c.status}" data-email="${esc(c.email)}">
+                <input type="checkbox" checked class="mass-check" value="${esc(c.email)}" onchange="updateMassCount()">
+                <span>${esc(c.first_name)} ${esc(c.last_name)}</span>
+                <span style="color:#5f6368;font-size:.72rem;margin-left:auto;">${esc(c.email)}</span>
+              </label>
+            `).join('')}
+          </div>
+          <div style="margin-top:6px;font-size:.75rem;color:#5f6368;" id="massCount">Sending to ${withEmail.length} recipients</div>
+        </div>
+        <form id="massEmailForm">
+          <div class="compose-field">
+            <span class="compose-label">Subject</span>
+            <input name="subject" id="massSubject" class="compose-input" required>
+          </div>
+          <div class="compose-divider"></div>
+          <textarea name="body" id="massBody" class="compose-body" placeholder=""></textarea>
+          <div class="compose-toolbar">
+            <div class="compose-toolbar-left">
+              <button type="submit" class="compose-send-btn" id="massSendBtn">Send</button>
+              <button type="button" class="compose-tool-btn" onclick="toggleMassAiDraft()" title="AI Draft">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4v1a3 3 0 0 1 3 3v1a2 2 0 0 1-2 2h-1l-2 5H10l-2-5H7a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3V6a4 4 0 0 1 4-4z"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="9" r="1" fill="currentColor"/></svg>
+              </button>
+            </div>
+            <button type="button" class="compose-tool-btn compose-discard" onclick="closeModal()" title="Discard">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M5 6v14a2 2 0 002 2h10a2 2 0 002-2V6"/></svg>
+            </button>
+          </div>
+          <div id="massAiDraftInput" class="compose-ai-bar" style="display:none;">
+            <input id="massAiPrompt" class="compose-ai-input" placeholder="Describe the email you want to write...">
+            <button type="button" class="compose-ai-btn" id="massAiDraftBtn" onclick="generateMassDraft()">Generate</button>
+            <span id="massAiDraftStatus" class="compose-ai-status"></span>
+          </div>
+        </form>
+      </div>
+    `);
+
+    document.getElementById('massEmailForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const checked = document.querySelectorAll('.mass-check:checked');
+      const emails = Array.from(checked).map(c => c.value);
+      if (!emails.length) { toast('No recipients selected', 'err'); return; }
+
+      const subject = document.getElementById('massSubject').value.trim();
+      const body = document.getElementById('massBody').value.trim();
+      if (!subject || !body) { toast('Subject and message are required', 'err'); return; }
+
+      const btn = document.getElementById('massSendBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        const result = await api('/email/bulk', { method: 'POST', body: { emails, subject, body } });
+        closeModal();
+        toast('Sent ' + result.sent + ' of ' + result.total + ' emails');
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Send';
+        toast(err.message, 'err');
+      }
+    };
+  } catch (err) { toast(err.message, 'err'); }
+}
+
+function massFilterClick(btn) {
+  document.querySelectorAll('.mass-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const filter = btn.dataset.filter;
+  document.querySelectorAll('.mass-recipient').forEach(r => {
+    const checkbox = r.querySelector('.mass-check');
+    if (filter === 'all') {
+      r.style.display = '';
+      checkbox.checked = true;
+    } else {
+      const match = r.dataset.status === filter;
+      r.style.display = match ? '' : 'none';
+      checkbox.checked = match;
+    }
+  });
+  updateMassCount();
+}
+
+function updateMassCount() {
+  const count = document.querySelectorAll('.mass-check:checked').length;
+  const el = document.getElementById('massCount');
+  if (el) el.textContent = 'Sending to ' + count + ' recipient' + (count !== 1 ? 's' : '');
+}
+
+function toggleMassAiDraft() {
+  const input = document.getElementById('massAiDraftInput');
+  if (input.style.display === 'none') {
+    input.style.display = '';
+    document.getElementById('massAiPrompt').focus();
+  } else {
+    input.style.display = 'none';
+  }
+}
+
+async function generateMassDraft() {
+  const promptEl = document.getElementById('massAiPrompt');
+  const statusEl = document.getElementById('massAiDraftStatus');
+  const btn = document.getElementById('massAiDraftBtn');
+  const prompt = promptEl.value.trim();
+  if (!prompt) { toast('Type what you want to say first', 'err'); return; }
+  btn.disabled = true;
+  statusEl.textContent = 'Generating draft...';
+  try {
+    const result = await api('/email/draft', {
+      method: 'POST',
+      body: { prompt, context: { business: 'Bridgeville Bark & Stroll', type: 'mass email to clients' } }
+    });
+    document.getElementById('massBody').value = result.body;
+    if (result.subject) document.getElementById('massSubject').value = result.subject;
+    statusEl.textContent = 'Draft loaded — edit as needed';
+    btn.disabled = false;
+  } catch (err) {
+    statusEl.textContent = '';
+    btn.disabled = false;
+    toast(err.message, 'err');
+  }
 }

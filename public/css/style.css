@@ -1341,6 +1341,26 @@ body.admin-app::after {
 .detail-section.collapsed .collapsible-content { display: none; }
 .detail-section.collapsed .collapse-icon { transform: rotate(-90deg); }
 
+/* --- Mass Email Filter Buttons --- */
+.mass-filter-btn {
+  background: #f1f3f4;
+  border: 1px solid #dadce0;
+  border-radius: 16px;
+  padding: 4px 14px;
+  font-size: .78rem;
+  font-family: 'DM Sans', sans-serif;
+  color: #5f6368;
+  cursor: pointer;
+  transition: all .15s;
+}
+.mass-filter-btn:hover { background: #e8eaed; }
+.mass-filter-btn.active {
+  background: #e8f0fe;
+  border-color: #4285f4;
+  color: #1a73e8;
+  font-weight: 600;
+}
+
 /* --- Notes Timeline --- */
 .note-entry {
   padding: 10px 0;

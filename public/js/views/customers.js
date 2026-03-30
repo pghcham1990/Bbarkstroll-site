@@ -293,35 +293,41 @@ function openEmailCompose(customerId, firstName, lastName, email) {
     const dogNames = c.dogs.map(d => d.name + (d.breed ? ' (' + d.breed + ')' : '')).join(', ');
 
     openModal(`
-      <div class="modal-header"><h2>Email ${esc(firstName)}</h2><button class="modal-close">&times;</button></div>
-      <form id="emailForm">
-        <div class="form-group">
-          <label>To</label>
-          <input name="to" type="email" value="${esc(email)}" required>
+      <div class="compose-window">
+        <div class="compose-header">
+          <span class="compose-title">New Message</span>
+          <button class="modal-close compose-close">&times;</button>
         </div>
-        <div class="form-group">
-          <label>Subject</label>
-          <input name="subject" id="emailSubject" required>
-        </div>
-        <div class="form-group">
-          <label>Message</label>
-          <textarea name="body" id="emailBody" rows="8" placeholder="Type your message..."></textarea>
-        </div>
-        <div id="aiDraftSection">
-          <button type="button" class="btn btn-outline btn-sm" id="aiDraftToggle" onclick="toggleAiDraft()">🤖 Help me write this</button>
-          <div id="aiDraftInput" style="display:none;margin-top:8px;">
-            <div class="form-group" style="margin-bottom:8px;">
-              <input id="aiPrompt" placeholder="e.g. welcome email, mention their dogs, excited to work together" style="width:100%;">
-            </div>
-            <button type="button" class="btn btn-primary btn-sm" id="aiDraftBtn" onclick="generateDraft(${customerId})">Generate Draft</button>
-            <span id="aiDraftStatus" style="font-size:.75rem;color:var(--text-soft);margin-left:8px;"></span>
+        <form id="emailForm">
+          <div class="compose-field">
+            <span class="compose-label">To</span>
+            <input name="to" type="email" class="compose-input" value="${esc(email)}" required>
           </div>
-        </div>
-        <div class="form-actions" style="margin-top:16px;">
-          <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="emailSendBtn">Send Email</button>
-        </div>
-      </form>
+          <div class="compose-divider"></div>
+          <div class="compose-field">
+            <span class="compose-label">Subject</span>
+            <input name="subject" id="emailSubject" class="compose-input" required>
+          </div>
+          <div class="compose-divider"></div>
+          <textarea name="body" id="emailBody" class="compose-body" placeholder=""></textarea>
+          <div class="compose-toolbar">
+            <div class="compose-toolbar-left">
+              <button type="submit" class="compose-send-btn" id="emailSendBtn">Send</button>
+              <button type="button" class="compose-tool-btn" id="aiDraftToggle" onclick="toggleAiDraft()" title="AI Draft">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4v1a3 3 0 0 1 3 3v1a2 2 0 0 1-2 2h-1l-2 5H10l-2-5H7a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3V6a4 4 0 0 1 4-4z"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="9" r="1" fill="currentColor"/></svg>
+              </button>
+            </div>
+            <button type="button" class="compose-tool-btn compose-discard" onclick="closeModal()" title="Discard">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M5 6v14a2 2 0 002 2h10a2 2 0 002-2V6"/></svg>
+            </button>
+          </div>
+          <div id="aiDraftInput" class="compose-ai-bar" style="display:none;">
+            <input id="aiPrompt" class="compose-ai-input" placeholder="Describe the email you want to write...">
+            <button type="button" class="compose-ai-btn" id="aiDraftBtn" onclick="generateDraft(${customerId})">Generate</button>
+            <span id="aiDraftStatus" class="compose-ai-status"></span>
+          </div>
+        </form>
+      </div>
     `);
 
     // Fetch notes from timeline for AI context
@@ -408,6 +414,8 @@ async function loadEmailHistory(customerId, email) {
   try {
     const result = await api('/email/log/' + encodeURIComponent(email));
     if (!result.emails || !result.emails.length) return;
+    window._emailCache = window._emailCache || {};
+    window._emailCache[customerId] = result.emails;
     container.innerHTML = `
       <div class="detail-section">
         <div class="detail-section-header" onclick="this.parentElement.classList.toggle('collapsed')" style="cursor:pointer;">
@@ -415,8 +423,8 @@ async function loadEmailHistory(customerId, email) {
           <span class="collapse-icon">▾</span>
         </div>
         <div class="collapsible-content">
-          ${result.emails.map(e => `
-            <div class="email-log-row">
+          ${result.emails.map((e, i) => `
+            <div class="email-log-row" onclick="viewEmail(${customerId}, ${i})" style="cursor:pointer;">
               <div class="email-log-info">
                 <div class="email-log-subject">${esc(e.subject)}</div>
                 <div class="email-log-meta">
@@ -424,6 +432,7 @@ async function loadEmailHistory(customerId, email) {
                 </div>
                 ${e.body_preview ? '<div class="email-log-preview">' + esc(e.body_preview) + '</div>' : ''}
               </div>
+              <span class="email-log-arrow">›</span>
             </div>
           `).join('')}
         </div>
@@ -504,4 +513,27 @@ async function deleteNote(noteId, customerId) {
     toast('Note deleted');
     loadNotes(customerId);
   } catch (err) { toast(err.message, 'err'); }
+}
+
+function viewEmail(customerId, index) {
+  const emails = (window._emailCache || {})[customerId];
+  if (!emails || !emails[index]) return;
+  const e = emails[index];
+  const body = e.body_full || e.body_preview || '';
+  const bodyHtml = esc(body).replace(/\n/g, '<br>');
+
+  openModal(`
+    <div class="email-viewer">
+      <div class="email-viewer-header">
+        <button class="modal-close compose-close">&times;</button>
+        <div class="email-viewer-subject">${esc(e.subject)}</div>
+        <div class="email-viewer-meta">
+          <span class="email-viewer-from">Sent by ${esc(e.sent_by || 'System')}</span>
+          <span class="email-viewer-date">${fmtDate(e.sent_at)}</span>
+        </div>
+        <div class="email-viewer-to">To: ${esc(e.recipient)}</div>
+      </div>
+      <div class="email-viewer-body">${bodyHtml}</div>
+    </div>
+  `);
 }

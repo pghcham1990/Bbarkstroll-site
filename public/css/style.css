@@ -1068,32 +1068,188 @@ body.admin-app::after {
   .form-row { flex-direction: column; gap: 0 }
 }
 
-/* --- Email Compose Modal --- */
-#aiDraftSection {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--sage);
+/* --- Gmail-Style Compose Window --- */
+.modal-sheet:has(.compose-window),
+.modal-sheet:has(.email-viewer) {
+  padding: 0;
+  max-width: 600px;
+  background: #ffffff;
+  overflow: hidden;
 }
-#emailBody {
-  font-family: 'DM Sans', sans-serif;
-  font-size: .85rem;
-  line-height: 1.6;
-  resize: vertical;
-  min-height: 140px;
+.compose-window {
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
 }
-#aiPrompt {
+.compose-header {
+  background: #f2f6fc;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e8eaed;
+}
+.compose-title {
+  font-size: .9rem;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+.compose-close {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  color: #5f6368;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.compose-close:hover { color: #1f1f1f; }
+.compose-field {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+}
+.compose-label {
+  font-size: .82rem;
+  color: #5f6368;
+  min-width: 56px;
+  flex-shrink: 0;
+}
+.compose-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: .9rem;
+  font-family: 'Google Sans', 'DM Sans', Arial, sans-serif;
+  color: #1f1f1f;
+  padding: 6px 0;
+  background: transparent;
+}
+.compose-input::placeholder { color: #b0b4b8; }
+.compose-divider {
+  height: 1px;
+  background: #e8eaed;
+  margin: 0 16px;
+}
+.compose-body {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: .9rem;
+  font-family: 'Google Sans', 'DM Sans', Arial, sans-serif;
+  color: #1f1f1f;
+  padding: 16px;
+  min-height: 240px;
+  resize: none;
+  line-height: 1.65;
+  background: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+}
+.compose-body::placeholder { color: #b0b4b8; }
+.compose-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f2f6fc;
+  border-top: 1px solid #e8eaed;
+}
+.compose-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.compose-send-btn {
+  background: #1a73e8;
+  color: #ffffff;
+  border: none;
+  border-radius: 18px;
+  padding: 8px 22px;
   font-size: .85rem;
-  padding: .5rem .75rem;
-  border: 1px solid #ddd;
-  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Google Sans', 'DM Sans', Arial, sans-serif;
+  transition: background .15s;
+}
+.compose-send-btn:hover { background: #1557b0; }
+.compose-send-btn:disabled { background: #a8c7f0; cursor: default; }
+.compose-tool-btn {
+  background: none;
+  border: none;
+  color: #5f6368;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+}
+.compose-tool-btn:hover { background: rgba(0,0,0,.06); }
+.compose-discard:hover { color: #d93025; background: rgba(217,48,37,.08); }
+
+/* AI Draft bar */
+.compose-ai-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #eef1f8;
+  border-top: 1px solid #e0e3e8;
+}
+.compose-ai-input {
+  flex: 1;
+  border: 1px solid #dadce0;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: .82rem;
+  font-family: 'Google Sans', 'DM Sans', Arial, sans-serif;
+  outline: none;
+  color: #1f1f1f;
+  background: #ffffff;
+}
+.compose-ai-input:focus { border-color: #1a73e8; }
+.compose-ai-input::placeholder { color: #9aa0a6; }
+.compose-ai-btn {
+  background: #1a73e8;
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  padding: 6px 16px;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'Google Sans', 'DM Sans', Arial, sans-serif;
+}
+.compose-ai-btn:hover { background: #1557b0; }
+.compose-ai-btn:disabled { background: #a8c7f0; cursor: default; }
+.compose-ai-status {
+  font-size: .72rem;
+  color: #5f6368;
+  white-space: nowrap;
 }
 
 /* --- Email History --- */
 .email-log-row {
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--sage);
+  display: flex;
+  align-items: center;
+  transition: background .15s;
+  border-radius: 6px;
+  padding-left: 6px;
+  padding-right: 6px;
+  margin: 0 -6px;
 }
+.email-log-row:hover { background: rgba(0,0,0,.02); }
 .email-log-row:last-child { border-bottom: none; }
+.email-log-info { flex: 1; min-width: 0; }
 .email-log-subject {
   font-size: .85rem;
   font-weight: 600;
@@ -1112,6 +1268,68 @@ body.admin-app::after {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+}
+.email-log-arrow {
+  color: #bbb;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* --- Email Viewer Modal --- */
+.email-viewer {
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.email-viewer-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e8eaed;
+  position: relative;
+}
+.email-viewer-header .compose-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+.email-viewer-subject {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1f1f1f;
+  padding-right: 32px;
+  line-height: 1.3;
+  margin-bottom: 10px;
+}
+.email-viewer-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.email-viewer-from {
+  font-size: .85rem;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+.email-viewer-date {
+  font-size: .78rem;
+  color: #5f6368;
+}
+.email-viewer-to {
+  font-size: .78rem;
+  color: #5f6368;
+}
+.email-viewer-body {
+  padding: 24px;
+  font-size: .9rem;
+  color: #1f1f1f;
+  line-height: 1.7;
+  overflow-y: auto;
+  flex: 1;
+  font-family: 'Google Sans', 'DM Sans', Arial, sans-serif;
 }
 
 /* Collapsible sections */

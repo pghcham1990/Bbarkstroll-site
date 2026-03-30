@@ -140,10 +140,50 @@ h1{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:.25rem}
       'A verification code was sent to your email. Enter it below.</p>' +
       '<label for="verifyCode">Verification Code</label>' +
       '<input type="text" id="verifyCode" name="code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" required placeholder="000000">' +
+      '<p id="resendRow" style="font-size:.8rem;color:var(--text-soft);margin-top:.6rem;">Didn\'t receive it? <a href="#" id="resendLink" style="color:var(--forest);font-weight:600;text-decoration:none;cursor:pointer;">Resend code</a></p>' +
       '</div>';
     btn.insertAdjacentHTML('beforebegin', challengeHTML);
     btn.textContent = 'Verify';
     document.getElementById('verifyCode').focus();
+
+    // Attach resend handler
+    attachResendHandler();
+  }
+
+  function attachResendHandler() {
+    const link = document.getElementById('resendLink');
+    if (!link) return;
+    link.addEventListener('click', handleResend);
+  }
+
+  async function handleResend(ev) {
+    ev.preventDefault();
+    if (!pendingChallenge) return;
+    const resendRow = document.getElementById('resendRow');
+    const link = document.getElementById('resendLink');
+    if (link) { link.style.pointerEvents = 'none'; link.style.opacity = '0.5'; }
+    try {
+      const r = await fetch('/admin/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: pendingChallenge.username, password: pendingChallenge.password })
+      });
+      const data = await r.json();
+      if (data.challenge && data.challenge_id) {
+        pendingChallenge.challenge_id = data.challenge_id;
+        document.getElementById('verifyCode').value = '';
+        resendRow.innerHTML = '<span style="color:var(--forest);font-weight:600;">New code sent!</span>';
+        setTimeout(function() {
+          resendRow.innerHTML = 'Didn\'t receive it? <a href="#" id="resendLink" style="color:var(--forest);font-weight:600;text-decoration:none;cursor:pointer;">Resend code</a>';
+          attachResendHandler();
+        }, 4000);
+      } else {
+        errEl.textContent = data.error || 'Could not resend code';
+      }
+    } catch {
+      errEl.textContent = 'Connection error';
+    }
+    if (link) { link.style.pointerEvents = ''; link.style.opacity = ''; }
   }
 })();
 </script>

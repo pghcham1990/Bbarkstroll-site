@@ -19,7 +19,7 @@ router.post('/login', async (req, res) => {
     const { username, password, challenge_id, code } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
 
-    const ip = req.ip;
+    const ip = (req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim() || '0.0.0.0';
     const user_agent = req.headers['user-agent'];
 
     // --- Challenge verification flow ---

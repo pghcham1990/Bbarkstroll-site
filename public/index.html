@@ -49,25 +49,24 @@ h1{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:.25rem}
 (function() {
   const form = document.getElementById('loginForm');
   const errEl = document.getElementById('err');
-  let pendingChallenge = null; // { challenge_id, username, password }
+  let pendingTotp = null; // { mode: 'totp_setup'|'totp_required', username, password, qr_url?, secret_manual? }
 
   form.addEventListener('submit', async function(e) {
     e.preventDefault();
     errEl.textContent = '';
 
-    // --- Challenge code submission ---
-    if (pendingChallenge) {
-      const code = document.getElementById('verifyCode').value.trim();
-      if (!code) { errEl.textContent = 'Please enter the verification code'; return; }
+    // --- TOTP code submission ---
+    if (pendingTotp) {
+      const token = document.getElementById('totpCode').value.trim();
+      if (!token) { errEl.textContent = 'Please enter the authenticator code'; return; }
       try {
         const r = await fetch('/admin/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            username: pendingChallenge.username,
-            password: pendingChallenge.password,
-            challenge_id: pendingChallenge.challenge_id,
-            code
+            username: pendingTotp.username,
+            password: pendingTotp.password,
+            totp_token: token
           })
         });
         const data = await r.json();
@@ -78,7 +77,8 @@ h1{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:.25rem}
           else { window.location.href = '/admin/app'; }
           return;
         }
-        errEl.textContent = data.error || 'Verification failed';
+        errEl.textContent = data.error || 'Invalid code';
+        document.getElementById('totpCode').value = '';
       } catch {
         errEl.textContent = 'Connection error';
       }
@@ -98,10 +98,17 @@ h1{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:.25rem}
       });
       const data = await r.json();
 
-      // Challenge required
-      if (data.challenge && data.challenge_id) {
-        pendingChallenge = { challenge_id: data.challenge_id, username, password };
-        showChallengeUI();
+      // TOTP setup — show QR code + code input
+      if (data.totp_setup) {
+        pendingTotp = { mode: 'totp_setup', username, password, qr_url: data.qr_url, secret_manual: data.secret_manual };
+        showTotpUI(true, data.qr_url, data.secret_manual);
+        return;
+      }
+
+      // TOTP required — show just code input
+      if (data.totp_required) {
+        pendingTotp = { mode: 'totp_required', username, password };
+        showTotpUI(false);
         return;
       }
 
@@ -126,64 +133,31 @@ h1{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:.25rem}
     }
   });
 
-  function showChallengeUI() {
-    // Hide username/password fields, show code input
-    const fieldContainer = form.querySelector('.field:nth-child(1)');
-    const fieldContainer2 = form.querySelector('.field:nth-child(2)');
+  function showTotpUI(isSetup, qrUrl, secretManual) {
+    // Hide username/password fields
+    var fieldContainer = form.querySelector('.field:nth-child(1)');
+    var fieldContainer2 = form.querySelector('.field:nth-child(2)');
     fieldContainer.style.display = 'none';
     fieldContainer2.style.display = 'none';
 
-    // Insert challenge UI before the button
-    const btn = form.querySelector('.btn');
-    const challengeHTML = '<div class="field" id="challengeField">' +
-      '<p style="font-size:.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.4">' +
-      'A verification code was sent to your email. Enter it below.</p>' +
-      '<label for="verifyCode">Verification Code</label>' +
-      '<input type="text" id="verifyCode" name="code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" required placeholder="000000">' +
-      '<p id="resendRow" style="font-size:.8rem;color:var(--text-soft);margin-top:.6rem;">Didn\'t receive it? <a href="#" id="resendLink" style="color:var(--forest);font-weight:600;text-decoration:none;cursor:pointer;">Resend code</a></p>' +
-      '</div>';
-    btn.insertAdjacentHTML('beforebegin', challengeHTML);
-    btn.textContent = 'Verify';
-    document.getElementById('verifyCode').focus();
-
-    // Attach resend handler
-    attachResendHandler();
-  }
-
-  function attachResendHandler() {
-    const link = document.getElementById('resendLink');
-    if (!link) return;
-    link.addEventListener('click', handleResend);
-  }
-
-  async function handleResend(ev) {
-    ev.preventDefault();
-    if (!pendingChallenge) return;
-    const resendRow = document.getElementById('resendRow');
-    const link = document.getElementById('resendLink');
-    if (link) { link.style.pointerEvents = 'none'; link.style.opacity = '0.5'; }
-    try {
-      const r = await fetch('/admin/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: pendingChallenge.username, password: pendingChallenge.password })
-      });
-      const data = await r.json();
-      if (data.challenge && data.challenge_id) {
-        pendingChallenge.challenge_id = data.challenge_id;
-        document.getElementById('verifyCode').value = '';
-        resendRow.innerHTML = '<span style="color:var(--forest);font-weight:600;">New code sent!</span>';
-        setTimeout(function() {
-          resendRow.innerHTML = 'Didn\'t receive it? <a href="#" id="resendLink" style="color:var(--forest);font-weight:600;text-decoration:none;cursor:pointer;">Resend code</a>';
-          attachResendHandler();
-        }, 4000);
-      } else {
-        errEl.textContent = data.error || 'Could not resend code';
-      }
-    } catch {
-      errEl.textContent = 'Connection error';
+    // Build TOTP UI
+    var btn = form.querySelector('.btn');
+    var html = '<div class="field" id="totpField">';
+    if (isSetup) {
+      html += '<p style="font-size:.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.4">' +
+        'Scan with Google Authenticator or Authy</p>' +
+        '<div style="text-align:center;margin-bottom:1rem;"><img src="' + qrUrl + '" alt="QR Code" style="width:180px;height:180px;border-radius:8px;"></div>' +
+        '<p style="font-size:.75rem;color:var(--text-soft);margin-bottom:1rem;text-align:center;word-break:break-all;">Manual key: <strong>' + secretManual + '</strong></p>';
+    } else {
+      html += '<p style="font-size:.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.4">' +
+        'Enter the code from your authenticator app</p>';
     }
-    if (link) { link.style.pointerEvents = ''; link.style.opacity = ''; }
+    html += '<label for="totpCode">Authenticator Code</label>' +
+      '<input type="text" id="totpCode" name="totp" autocomplete="one-time-code" inputmode="numeric" maxlength="6" required placeholder="000000">' +
+      '</div>';
+    btn.insertAdjacentHTML('beforebegin', html);
+    btn.textContent = 'Verify';
+    document.getElementById('totpCode').focus();
   }
 })();
 </script>

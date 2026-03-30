@@ -16,26 +16,25 @@ async function guardFetch(path, body) {
 
 router.post('/login', async (req, res) => {
   try {
-    const { username, password, challenge_id, code } = req.body;
+    const { username, password, totp_token } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
 
     const ip = (req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim() || '0.0.0.0';
     const user_agent = req.headers['user-agent'];
 
-    // --- Challenge verification flow ---
-    if (challenge_id && code) {
+    // --- TOTP verification flow ---
+    if (totp_token) {
       try {
-        const vResult = await guardFetch('/verify', { challenge_id, code });
+        const vResult = await guardFetch('/verify', { app: 'barkstroll', user_id: username, token: totp_token, ip, user_agent });
         if (vResult.status !== 'verified') {
-          return res.status(401).json({ error: vResult.error || 'Invalid verification code' });
+          return res.status(401).json({ error: vResult.error || 'Invalid authenticator code' });
         }
       } catch (guardErr) {
-        // Guard down during verify — deny (can't skip challenge once started)
         console.error('Guard verify error:', guardErr.message);
         return res.status(502).json({ error: 'Verification service unavailable. Try again.' });
       }
 
-      // Code verified — now check password
+      // TOTP verified — now check password
       const user = authenticate(username, password);
       if (!user) {
         guardFetch('/login-failure', { app: 'barkstroll', user_id: username, ip }).catch(() => {});
@@ -73,8 +72,12 @@ router.post('/login', async (req, res) => {
         return res.status(423).json({ error: tierMsg, locked: true, tier: guardResult.tier, unlock_at: guardResult.unlock_at });
       }
 
-      if (guardResult.status === 'challenge') {
-        return res.json({ challenge: true, challenge_id: guardResult.challenge_id });
+      if (guardResult.status === 'totp_setup') {
+        return res.json({ totp_setup: true, qr_url: guardResult.qr_url, secret_manual: guardResult.secret_manual, message: guardResult.message });
+      }
+
+      if (guardResult.status === 'totp_required') {
+        return res.json({ totp_required: true });
       }
 
       // status === 'allow' — proceed with normal password check below

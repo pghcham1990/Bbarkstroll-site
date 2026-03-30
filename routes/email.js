@@ -1,8 +1,14 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../lib/db');
 
 const MAILER_URL = process.env.BPD_MAILER_URL;
 const MAILER_KEY = process.env.BPD_MAILER_API_KEY;
+
+// Get all customer emails for filtering
+function getClientEmails() {
+  return db.prepare("SELECT email FROM customers WHERE email IS NOT NULL AND email != ''").all().map(r => r.email.toLowerCase());
+}
 
 async function mailerFetch(path, opts = {}) {
   const res = await fetch(MAILER_URL + path, {
@@ -91,11 +97,13 @@ router.get('/email/log/:email', async (req, res) => {
   }
 });
 
-// Get inbox (received emails)
+// Get inbox (received emails) — filtered to only show client emails
 router.get('/email/inbox', async (req, res) => {
   try {
-    const result = await mailerFetch('/api/inbox?limit=' + (req.query.limit || 50) + '&offset=' + (req.query.offset || 0));
-    res.json(result);
+    const result = await mailerFetch('/api/inbox?limit=200&offset=0');
+    const clientEmails = getClientEmails();
+    const filtered = (result.emails || []).filter(e => clientEmails.includes(e.from_address.toLowerCase()));
+    res.json({ emails: filtered.slice(0, parseInt(req.query.limit) || 50) });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
@@ -111,11 +119,13 @@ router.get('/email/threads/:email', async (req, res) => {
   }
 });
 
-// Get contacts list
+// Get contacts list — filtered to only show clients in the database
 router.get('/email/contacts', async (req, res) => {
   try {
     const result = await mailerFetch('/api/contacts');
-    res.json(result);
+    const clientEmails = getClientEmails();
+    const filtered = (result.contacts || []).filter(c => clientEmails.includes(c.email.toLowerCase()));
+    res.json({ contacts: filtered });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

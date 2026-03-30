@@ -66,6 +66,62 @@ app.get('/admin/cal/:id.ics', (req, res) => {
   res.send(ics);
 });
 
+// Public contact form endpoint (no auth required)
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { name, phone, email, dog_names } = req.body;
+    if (!name || !email) return res.status(400).json({ error: 'Name and email are required' });
+
+    // Split name into first/last
+    const parts = name.trim().split(/\s+/);
+    const first_name = parts[0];
+    const last_name = parts.slice(1).join(' ') || '';
+
+    // Check if customer already exists by email
+    const existing = db.prepare('SELECT id FROM customers WHERE email = ?').get(email.trim());
+    if (!existing) {
+      // Create as prospect
+      const notes = 'Form submission ' + new Date().toLocaleDateString('en-US') + '.';
+      const result = db.prepare(
+        "INSERT INTO customers (first_name, last_name, email, phone, notes, status) VALUES (?, ?, ?, ?, ?, 'prospect')"
+      ).run(first_name, last_name, email.trim(), phone || null, notes);
+
+      // Add dogs if provided
+      if (dog_names) {
+        const dogInsert = db.prepare('INSERT INTO dogs (customer_id, name) VALUES (?, ?)');
+        dog_names.split(',').map(d => d.trim()).filter(Boolean).forEach(dogName => {
+          dogInsert.run(result.lastInsertRowid, dogName);
+        });
+      }
+    }
+
+    // Send branded welcome email via BPD Mailer
+    const MAILER_URL = process.env.BPD_MAILER_URL;
+    const MAILER_KEY = process.env.BPD_MAILER_API_KEY;
+    if (MAILER_URL && MAILER_KEY) {
+      try {
+        await fetch(MAILER_URL + '/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': MAILER_KEY },
+          body: JSON.stringify({
+            to: email.trim(),
+            subject: 'Thanks for reaching out! — Bridgeville Bark & Stroll',
+            body: 'Hi ' + first_name + ',\n\nThank you for your interest in Bridgeville Bark & Stroll! We received your request and will get back to you within one business day.\n\nWe look forward to meeting you and ' + (dog_names || 'your pup') + '!\n\nScott\nBridgeville Bark & Stroll',
+            sent_by: 'System'
+          })
+        });
+      } catch (emailErr) {
+        console.error('Welcome email failed:', emailErr.message);
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Contact form error:', err.message);
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+});
+
 // Auth routes (no auth required)
 app.use('/admin/api', require('./routes/auth'));
 

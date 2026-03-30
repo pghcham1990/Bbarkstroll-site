@@ -1463,3 +1463,52 @@ body.admin-app::after {
   white-space: nowrap;
   margin-top: 2px;
 }
+
+/* --- Thread Messages --- */
+.thread-msg {
+  padding: 16px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  font-size: .88rem;
+  line-height: 1.6;
+}
+.thread-sent {
+  background: #e8f0fe;
+  border: 1px solid #c5d9f7;
+  margin-left: 32px;
+}
+.thread-received {
+  background: #ffffff;
+  border: 1px solid #e8e8e5;
+  margin-right: 32px;
+}
+.thread-msg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.thread-msg-from {
+  font-weight: 600;
+  font-size: .82rem;
+  color: var(--text);
+}
+.thread-msg-date {
+  font-size: .7rem;
+  color: var(--text-soft);
+}
+.thread-msg-subject {
+  font-size: .75rem;
+  color: var(--text-soft);
+  margin-bottom: 6px;
+}
+.thread-msg-body {
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+#threadView {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}

@@ -11,7 +11,8 @@ const PAGE_TITLES = {
   customers: 'Clients',
   calendar: 'Calendar',
   employees: 'Team',
-  docgen: 'Document Generator'
+  docgen: 'Document Generator',
+  messages: 'Messages'
 };
 
 /* --- API helper --- */

@@ -12,7 +12,8 @@ const PAGE_TITLES = {
   calendar: 'Calendar',
   employees: 'Team',
   docgen: 'Document Generator',
-  messages: 'Messages'
+  messages: 'Messages',
+  reports: 'Reports'
 };
 
 /* --- API helper --- */

@@ -126,11 +126,13 @@ async function runReport(slug) {
             let meta;
             try { meta = JSON.parse(evt.message); } catch(e) { meta = null; }
             if (meta && meta.previewUrl) {
+              const preview = '/admin' + meta.previewUrl;
+              const pdf = '/admin' + meta.pdfUrl;
               resultEl.style.display = 'block';
               resultEl.innerHTML = `
                 <div style="display:flex;gap:12px;">
-                  <a href="${meta.previewUrl}" target="_blank" style="padding:8px 16px;background:var(--forest);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-size:13px;font-weight:600;">View Report</a>
-                  <a href="${meta.pdfUrl}" target="_blank" style="padding:8px 16px;background:var(--gold);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-size:13px;font-weight:600;">Download PDF</a>
+                  <a href="${preview}" target="_blank" style="padding:8px 16px;background:var(--forest);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-size:13px;font-weight:600;">View Report</a>
+                  <a href="${pdf}" target="_blank" style="padding:8px 16px;background:var(--gold);color:#fff;border-radius:var(--radius-sm);text-decoration:none;font-size:13px;font-weight:600;">Download PDF</a>
                 </div>`;
             }
           } else if (evt.step === 'emailed') {

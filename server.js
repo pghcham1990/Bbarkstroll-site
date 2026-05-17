@@ -63,6 +63,7 @@ function rateLimit({ windowMs, max }) {
   };
 }
 const contactLimiter = rateLimit({ windowMs: 60_000, max: 4 });
+const applicantLimiter = rateLimit({ windowMs: 60_000, max: 3 });
 
 // Login page
 app.get('/portal', (_req, res) => {
@@ -215,6 +216,101 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Contact form error:', err.message);
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+});
+
+app.post('/api/applicants/submit', applicantLimiter, async (req, res) => {
+  try {
+    const b = req.body || {};
+
+    // Honeypot: bots fill `website`, humans don't see it.
+    if (b.website && String(b.website).trim() !== '') return res.json({ ok: true });
+
+    // Server-side validation. Mirror exactly what the form requires.
+    const required = ['full_name', 'email', 'phone', 'zip', 'closest_area', 'hours_hoping', 'why_interested', 'tricky_situation'];
+    for (const f of required) {
+      if (!b[f] || String(b[f]).trim() === '') {
+        return res.status(400).json({ error: 'Missing required field: ' + f });
+      }
+    }
+
+    if (b.is_18_plus !== true && b.is_18_plus !== 'true' && b.is_18_plus !== 1) {
+      return res.status(400).json({ error: 'Must be 18 or older to apply' });
+    }
+
+    const daysArr = Array.isArray(b.days_available) ? b.days_available : [];
+    const timesArr = Array.isArray(b.time_windows) ? b.time_windows : [];
+    const sizesArr = Array.isArray(b.sizes_ok) ? b.sizes_ok : [];
+    if (!daysArr.length) return res.status(400).json({ error: 'Pick at least one day' });
+    if (!timesArr.length) return res.status(400).json({ error: 'Pick at least one time window' });
+    if (!sizesArr.length) return res.status(400).json({ error: 'Pick at least one dog size' });
+
+    const attestKeys = ['att_18', 'att_truthful', 'att_no_cruelty', 'att_1099', 'att_consent', 'att_privacy'];
+    for (const k of attestKeys) {
+      if (b[k] !== true && b[k] !== 'true' && b[k] !== 1) {
+        return res.status(400).json({ error: 'All attestations must be checked' });
+      }
+    }
+
+    const attestSnapshot = JSON.stringify({
+      checked_at: new Date().toISOString(),
+      ip: req.ip,
+      keys: attestKeys
+    });
+
+    const result = db.prepare(`
+      INSERT INTO applicants (
+        full_name, preferred_name, email, phone, zip,
+        is_18_plus, has_transport, closest_area,
+        days_available, time_windows, hours_hoping,
+        owned_dogs, experience_note, sizes_ok,
+        uncomfortable, allergies, why_interested, tricky_situation,
+        ref1_name, ref1_phone, ref1_relation,
+        ref2_name, ref2_phone, ref2_relation,
+        refs_on_request, attestations
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      String(b.full_name).trim(),
+      b.preferred_name ? String(b.preferred_name).trim() : null,
+      String(b.email).trim(),
+      String(b.phone).trim(),
+      String(b.zip).trim(),
+      1,
+      b.has_transport ? 1 : 0,
+      String(b.closest_area).trim(),
+      JSON.stringify(daysArr),
+      JSON.stringify(timesArr),
+      String(b.hours_hoping).trim(),
+      b.owned_dogs ? 1 : 0,
+      b.experience_note ? String(b.experience_note).trim() : null,
+      JSON.stringify(sizesArr),
+      b.uncomfortable ? String(b.uncomfortable).trim() : null,
+      b.allergies ? String(b.allergies).trim() : null,
+      String(b.why_interested).trim(),
+      String(b.tricky_situation).trim(),
+      b.ref1_name ? String(b.ref1_name).trim() : null,
+      b.ref1_phone ? String(b.ref1_phone).trim() : null,
+      b.ref1_relation ? String(b.ref1_relation).trim() : null,
+      b.ref2_name ? String(b.ref2_name).trim() : null,
+      b.ref2_phone ? String(b.ref2_phone).trim() : null,
+      b.ref2_relation ? String(b.ref2_relation).trim() : null,
+      b.refs_on_request ? 1 : 0,
+      attestSnapshot
+    );
+
+    // Notify Scott. Don't break the submission if email is down.
+    try {
+      const { sendApplicantNotification } = require('./lib/email');
+      const row = db.prepare('SELECT * FROM applicants WHERE id = ?').get(result.lastInsertRowid);
+      await sendApplicantNotification(row);
+    } catch (notifyErr) {
+      console.error('[applicant-submit] notification failed:', notifyErr.message);
+    }
+
+    res.json({ ok: true, id: result.lastInsertRowid });
+  } catch (err) {
+    console.error('Applicant submit error:', err.message);
     res.status(500).json({ error: 'Something went wrong' });
   }
 });

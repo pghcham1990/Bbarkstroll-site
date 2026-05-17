@@ -1,6 +1,7 @@
 /* === Applicants View === */
 
 const APPLICANT_STATUS_LABELS = {
+  lead: 'Lead (no form yet)',
   new: 'New',
   reviewed: 'Reviewed',
   finalist: 'Finalist',
@@ -10,6 +11,7 @@ const APPLICANT_STATUS_LABELS = {
 };
 
 const APPLICANT_STATUS_COLORS = {
+  lead: '#9a8a6a',
   new: '#c9a55b',
   reviewed: '#5a8fc4',
   finalist: '#14613a',
@@ -29,14 +31,25 @@ function fmtRelDate(iso) {
 }
 
 async function render_applicants(container) {
-  container.innerHTML = '<div class="view-header"><h2 style="margin:0;font-size:20px">Applicants</h2><p style="margin:4px 0 18px;color:#888;font-size:13px">Walker applications from the public /join page.</p></div><div id="applicants-list">Loading...</div>';
+  container.innerHTML = `
+    <div class="view-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+      <div>
+        <h2 style="margin:0;font-size:20px">Applicants</h2>
+        <p style="margin:4px 0 18px;color:#888;font-size:13px">Walker applications from /join, plus leads added manually.</p>
+      </div>
+      <button id="addLeadBtn" type="button" style="padding:8px 14px;background:#14613a;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">+ Add lead</button>
+    </div>
+    <div id="applicants-list">Loading...</div>
+  `;
+
+  document.getElementById('addLeadBtn').onclick = openAddLeadModal;
 
   try {
     const data = await api('/applicants');
     const apps = data.applicants || [];
     const list = document.getElementById('applicants-list');
     if (!apps.length) {
-      list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">No applications yet.</div></div>';
+      list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">No applications or leads yet. Use + Add lead to drop someone in manually.</div></div>';
       return;
     }
     list.innerHTML = '<div class="applicants-grid" style="display:grid;gap:10px">' +
@@ -49,6 +62,49 @@ async function render_applicants(container) {
   } catch (e) {
     document.getElementById('applicants-list').innerHTML = '<div class="empty">Error: ' + esc(e.message) + '</div>';
   }
+}
+
+function openAddLeadModal() {
+  openModal(`
+    <button class="modal-close" type="button">×</button>
+    <h2 style="margin:0 0 4px;font-size:20px">Add a lead</h2>
+    <p style="color:#888;font-size:12px;margin:0 0 18px">For people you've heard from but who haven't filled out /join yet. When they fill the form, this row auto-fills with their full details.</p>
+
+    <label style="display:block;font-size:12px;color:#666;font-weight:600;margin-bottom:4px">Full name</label>
+    <input type="text" id="leadName" style="width:100%;padding:8px 10px;border:1px solid #d8d0bd;border-radius:6px;font-size:14px;margin-bottom:12px">
+
+    <label style="display:block;font-size:12px;color:#666;font-weight:600;margin-bottom:4px">Email</label>
+    <input type="email" id="leadEmail" style="width:100%;padding:8px 10px;border:1px solid #d8d0bd;border-radius:6px;font-size:14px;margin-bottom:12px">
+
+    <label style="display:block;font-size:12px;color:#666;font-weight:600;margin-bottom:4px">Phone (optional)</label>
+    <input type="tel" id="leadPhone" style="width:100%;padding:8px 10px;border:1px solid #d8d0bd;border-radius:6px;font-size:14px;margin-bottom:12px">
+
+    <label style="display:block;font-size:12px;color:#666;font-weight:600;margin-bottom:4px">Source / notes (optional)</label>
+    <textarea id="leadNotes" placeholder="e.g., emailed me from the South Fayette FB group on 5/17, stay-at-home mom" style="width:100%;min-height:70px;padding:8px;border:1px solid #d8d0bd;border-radius:6px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+
+    <div style="margin-top:18px;display:flex;gap:8px;justify-content:flex-end">
+      <button id="leadSave" type="button" style="padding:9px 18px;background:#14613a;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer">Save lead</button>
+    </div>
+  `);
+
+  setTimeout(() => document.getElementById('leadName').focus(), 100);
+
+  document.getElementById('leadSave').onclick = async () => {
+    const name = document.getElementById('leadName').value.trim();
+    const email = document.getElementById('leadEmail').value.trim();
+    const phone = document.getElementById('leadPhone').value.trim();
+    const notes = document.getElementById('leadNotes').value.trim();
+    if (!name) return toast('Name required', 'err');
+    if (!email) return toast('Email required', 'err');
+    try {
+      await api('/applicants/lead', { method: 'POST', body: { full_name: name, email, phone, scott_notes: notes } });
+      toast('Lead added', 'ok');
+      closeModal();
+      render_applicants(App.content);
+    } catch (e) {
+      toast('Save failed: ' + e.message, 'err');
+    }
+  };
 }
 
 function renderApplicantCard(a) {

@@ -8,11 +8,46 @@ router.get('/applicants', (req, res) => {
            hours_hoping, status, scott_notes, bgcheck_sent_at, rejected_at
     FROM applicants
     ORDER BY
-      CASE status WHEN 'new' THEN 0 WHEN 'reviewed' THEN 1 WHEN 'finalist' THEN 2
-                  WHEN 'bgcheck_sent' THEN 3 WHEN 'hired' THEN 4 WHEN 'rejected' THEN 5 END,
+      CASE status WHEN 'lead' THEN 0 WHEN 'new' THEN 1 WHEN 'reviewed' THEN 2 WHEN 'finalist' THEN 3
+                  WHEN 'bgcheck_sent' THEN 4 WHEN 'hired' THEN 5 WHEN 'rejected' THEN 6 END,
       created_at DESC
   `).all();
   res.json({ applicants: rows });
+});
+
+router.post('/applicants/lead', (req, res) => {
+  const { full_name, email, phone, scott_notes } = req.body || {};
+  if (!full_name || !String(full_name).trim()) return res.status(400).json({ error: 'Name required' });
+  if (!email || !String(email).trim()) return res.status(400).json({ error: 'Email required' });
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const existing = db.prepare('SELECT id, status FROM applicants WHERE LOWER(email) = ?').get(cleanEmail);
+  if (existing) {
+    return res.status(409).json({ error: 'Applicant with this email already exists (id ' + existing.id + ', status ' + existing.status + ')' });
+  }
+
+  // Lead stubs use empty strings for the NOT NULL form fields. The public submit
+  // endpoint upserts by email and fills them in when the applicant fills out /join.
+  const attestSnapshot = JSON.stringify({ source: 'manual_lead', added_at: new Date().toISOString() });
+  const result = db.prepare(`
+    INSERT INTO applicants (
+      full_name, email, phone, zip,
+      is_18_plus, has_transport, closest_area,
+      days_available, time_windows, hours_hoping,
+      owned_dogs, sizes_ok,
+      why_interested, tricky_situation,
+      attestations, status, scott_notes
+    ) VALUES (?, ?, ?, '', 0, 0, '', '[]', '[]', '', 0, '[]', '', '', ?, 'lead', ?)
+  `).run(
+    String(full_name).trim(),
+    cleanEmail,
+    phone ? String(phone).trim() : '',
+    attestSnapshot,
+    scott_notes ? String(scott_notes) : null
+  );
+
+  const row = db.prepare('SELECT * FROM applicants WHERE id = ?').get(result.lastInsertRowid);
+  res.json({ applicant: row });
 });
 
 router.get('/applicants/:id', (req, res) => {
@@ -26,7 +61,7 @@ router.get('/applicants/:id', (req, res) => {
 router.patch('/applicants/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!id) return res.status(400).json({ error: 'Bad id' });
-  const allowedStatuses = ['new','reviewed','finalist','bgcheck_sent','hired','rejected'];
+  const allowedStatuses = ['lead','new','reviewed','finalist','bgcheck_sent','hired','rejected'];
   const updates = [];
   const values = [];
   if (req.body.status !== undefined) {

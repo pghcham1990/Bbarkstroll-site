@@ -5,6 +5,22 @@ const path = require('path');
 const crypto = require('crypto');
 const { requireAuth, requireRole } = require('./lib/auth');
 
+// SSRF startup guard: GUARD_URL and BPD_MAILER_URL are used as URL prefixes
+// for server-side fetch() calls that carry sensitive payloads (TOTP tokens,
+// session cookies, AI drafts). If misconfigured to point at an arbitrary host
+// the server will happily ship credentials there. Fail loud at boot so a bad
+// env edit doesn't go unnoticed.
+function assertLoopbackUrl(name, val) {
+  if (!val) return; // optional: missing env disables the integration
+  let u;
+  try { u = new URL(val); } catch (_) { throw new Error(`${name} is not a valid URL: ${val}`); }
+  const host = u.hostname.toLowerCase();
+  const ok = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+  if (!ok) throw new Error(`${name} must point at loopback (localhost/127.0.0.1); got ${host}`);
+}
+assertLoopbackUrl('GUARD_URL', process.env.GUARD_URL);
+assertLoopbackUrl('BPD_MAILER_URL', process.env.BPD_MAILER_URL);
+
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
@@ -259,56 +275,108 @@ app.post('/api/applicants/submit', applicantLimiter, async (req, res) => {
       keys: attestKeys
     });
 
-    const result = db.prepare(`
-      INSERT INTO applicants (
-        full_name, preferred_name, email, phone, zip,
-        is_18_plus, has_transport, closest_area,
-        days_available, time_windows, hours_hoping,
-        owned_dogs, experience_note, sizes_ok,
-        uncomfortable, allergies, why_interested, tricky_situation,
-        ref1_name, ref1_phone, ref1_relation,
-        ref2_name, ref2_phone, ref2_relation,
-        refs_on_request, attestations
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      String(b.full_name).trim(),
-      b.preferred_name ? String(b.preferred_name).trim() : null,
-      String(b.email).trim(),
-      String(b.phone).trim(),
-      String(b.zip).trim(),
-      1,
-      b.has_transport ? 1 : 0,
-      String(b.closest_area).trim(),
-      JSON.stringify(daysArr),
-      JSON.stringify(timesArr),
-      String(b.hours_hoping).trim(),
-      b.owned_dogs ? 1 : 0,
-      b.experience_note ? String(b.experience_note).trim() : null,
-      JSON.stringify(sizesArr),
-      b.uncomfortable ? String(b.uncomfortable).trim() : null,
-      b.allergies ? String(b.allergies).trim() : null,
-      String(b.why_interested).trim(),
-      String(b.tricky_situation).trim(),
-      b.ref1_name ? String(b.ref1_name).trim() : null,
-      b.ref1_phone ? String(b.ref1_phone).trim() : null,
-      b.ref1_relation ? String(b.ref1_relation).trim() : null,
-      b.ref2_name ? String(b.ref2_name).trim() : null,
-      b.ref2_phone ? String(b.ref2_phone).trim() : null,
-      b.ref2_relation ? String(b.ref2_relation).trim() : null,
-      b.refs_on_request ? 1 : 0,
-      attestSnapshot
-    );
+    const cleanEmail = String(b.email).trim().toLowerCase();
+    const existing = db.prepare('SELECT id, status FROM applicants WHERE LOWER(email) = ?').get(cleanEmail);
+
+    let applicantId;
+    if (existing && existing.status === 'lead') {
+      // Upsert: stub lead row gets filled in with the full application and promoted to 'new'.
+      db.prepare(`
+        UPDATE applicants SET
+          full_name = ?, preferred_name = ?, phone = ?, zip = ?,
+          is_18_plus = ?, has_transport = ?, closest_area = ?,
+          days_available = ?, time_windows = ?, hours_hoping = ?,
+          owned_dogs = ?, experience_note = ?, sizes_ok = ?,
+          uncomfortable = ?, allergies = ?, why_interested = ?, tricky_situation = ?,
+          ref1_name = ?, ref1_phone = ?, ref1_relation = ?,
+          ref2_name = ?, ref2_phone = ?, ref2_relation = ?,
+          refs_on_request = ?, attestations = ?, status = 'new'
+        WHERE id = ?
+      `).run(
+        String(b.full_name).trim(),
+        b.preferred_name ? String(b.preferred_name).trim() : null,
+        String(b.phone).trim(),
+        String(b.zip).trim(),
+        1,
+        b.has_transport ? 1 : 0,
+        String(b.closest_area).trim(),
+        JSON.stringify(daysArr),
+        JSON.stringify(timesArr),
+        String(b.hours_hoping).trim(),
+        b.owned_dogs ? 1 : 0,
+        b.experience_note ? String(b.experience_note).trim() : null,
+        JSON.stringify(sizesArr),
+        b.uncomfortable ? String(b.uncomfortable).trim() : null,
+        b.allergies ? String(b.allergies).trim() : null,
+        String(b.why_interested).trim(),
+        String(b.tricky_situation).trim(),
+        b.ref1_name ? String(b.ref1_name).trim() : null,
+        b.ref1_phone ? String(b.ref1_phone).trim() : null,
+        b.ref1_relation ? String(b.ref1_relation).trim() : null,
+        b.ref2_name ? String(b.ref2_name).trim() : null,
+        b.ref2_phone ? String(b.ref2_phone).trim() : null,
+        b.ref2_relation ? String(b.ref2_relation).trim() : null,
+        b.refs_on_request ? 1 : 0,
+        attestSnapshot,
+        existing.id
+      );
+      applicantId = existing.id;
+    } else if (existing) {
+      // Real prior application exists at any non-lead status. Don't silently overwrite Scott's review work.
+      return res.status(409).json({ error: "We already have an application on file for that email. Reach out at scott@barkstroll.com if you'd like to update it." });
+    } else {
+      const result = db.prepare(`
+        INSERT INTO applicants (
+          full_name, preferred_name, email, phone, zip,
+          is_18_plus, has_transport, closest_area,
+          days_available, time_windows, hours_hoping,
+          owned_dogs, experience_note, sizes_ok,
+          uncomfortable, allergies, why_interested, tricky_situation,
+          ref1_name, ref1_phone, ref1_relation,
+          ref2_name, ref2_phone, ref2_relation,
+          refs_on_request, attestations
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        String(b.full_name).trim(),
+        b.preferred_name ? String(b.preferred_name).trim() : null,
+        cleanEmail,
+        String(b.phone).trim(),
+        String(b.zip).trim(),
+        1,
+        b.has_transport ? 1 : 0,
+        String(b.closest_area).trim(),
+        JSON.stringify(daysArr),
+        JSON.stringify(timesArr),
+        String(b.hours_hoping).trim(),
+        b.owned_dogs ? 1 : 0,
+        b.experience_note ? String(b.experience_note).trim() : null,
+        JSON.stringify(sizesArr),
+        b.uncomfortable ? String(b.uncomfortable).trim() : null,
+        b.allergies ? String(b.allergies).trim() : null,
+        String(b.why_interested).trim(),
+        String(b.tricky_situation).trim(),
+        b.ref1_name ? String(b.ref1_name).trim() : null,
+        b.ref1_phone ? String(b.ref1_phone).trim() : null,
+        b.ref1_relation ? String(b.ref1_relation).trim() : null,
+        b.ref2_name ? String(b.ref2_name).trim() : null,
+        b.ref2_phone ? String(b.ref2_phone).trim() : null,
+        b.ref2_relation ? String(b.ref2_relation).trim() : null,
+        b.refs_on_request ? 1 : 0,
+        attestSnapshot
+      );
+      applicantId = result.lastInsertRowid;
+    }
 
     // Notify Scott. Don't break the submission if email is down.
     try {
       const { sendApplicantNotification } = require('./lib/email');
-      const row = db.prepare('SELECT * FROM applicants WHERE id = ?').get(result.lastInsertRowid);
+      const row = db.prepare('SELECT * FROM applicants WHERE id = ?').get(applicantId);
       await sendApplicantNotification(row);
     } catch (notifyErr) {
       console.error('[applicant-submit] notification failed:', notifyErr.message);
     }
 
-    res.json({ ok: true, id: result.lastInsertRowid });
+    res.json({ ok: true, id: applicantId });
   } catch (err) {
     console.error('Applicant submit error:', err.message);
     res.status(500).json({ error: 'Something went wrong' });

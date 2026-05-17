@@ -56,20 +56,55 @@ async function loadCustomers() {
       const dogText = c.dog_count ? c.dog_count + ' dog' + (c.dog_count > 1 ? 's' : '') : '';
       const initial = c.first_name ? esc(c.first_name.charAt(0).toUpperCase()) : '?';
       const color = getAvatarColor(c.first_name + c.last_name);
-      return `
-        <div class="list-item" onclick="toggleCustomer(${c.id})">
-          <div class="list-icon${isProspect ? ' prospect' : ''}" style="background:${isProspect ? '' : color.bg};color:${isProspect ? '' : color.text};border:1.5px solid ${isProspect ? 'transparent' : color.border}">${isProspect ? '○' : initial}</div>
-          <div class="list-body">
-            <div class="list-title">${esc(c.last_name)}, ${esc(c.first_name)}</div>
-            <div class="list-sub">${fmtPhone(c.phone) || c.email || 'No contact info'}</div>
-            <div class="list-meta">
-              ${c.rate ? '<span class="list-rate">$' + Number(c.rate).toFixed(0) + '</span>' : ''}
-              ${dogText ? '<span class="list-badge">🐾 ' + dogText + '</span>' : ''}
-            </div>
+
+      // Prospect status line: inquiry date + reply status + service-zone tag.
+      // The form-submission endpoint creates the prospect row, so created_at == inquiry time.
+      // note_count > 0 means Scott (or another admin) has logged a timeline follow-up.
+      let prospectStatus = '';
+      if (isProspect) {
+        const inquiry = c.created_at ? 'Inquired ' + fmtShortDate(c.created_at) : '';
+        const replied = c.note_count > 0
+          ? '<span class="list-badge list-badge-replied">✓ Replied</span>'
+          : '<span class="list-badge list-badge-pending">⏳ No reply yet</span>';
+        const zone = c.out_of_area
+          ? '<span class="list-badge list-badge-out">Out of zone</span>'
+          : '<span class="list-badge list-badge-in">In service zone</span>';
+        prospectStatus = `
+          <div class="list-meta">
+            ${inquiry ? '<span class="list-sub-mini">' + inquiry + '</span>' : ''}
+            ${replied}
+            ${zone}
           </div>
-          <button class="list-edit-btn" onclick="event.stopPropagation();openCustomerForm(${c.id})" title="Edit">✏️</button>
+        `;
+      }
+
+      // Client status line: last time they actually used us (most recent past appt).
+      // last_service_at is null for clients who have never had a completed/past appointment.
+      let clientStatus = '';
+      if (!isProspect) {
+        clientStatus = c.last_service_at
+          ? '<div class="list-meta"><span class="list-sub-mini">Last service ' + fmtShortDate(c.last_service_at) + '</span></div>'
+          : '<div class="list-meta"><span class="list-sub-mini" style="opacity:.6">No services yet</span></div>';
+      }
+
+      return `
+        <div class="customer-wrapper" id="wrapper-${c.id}">
+          <div class="list-item" onclick="toggleCustomer(${c.id})">
+            <div class="list-icon${isProspect ? ' prospect' : ''}" style="background:${isProspect ? '' : color.bg};color:${isProspect ? '' : color.text};border:1.5px solid ${isProspect ? 'transparent' : color.border}">${isProspect ? '○' : initial}</div>
+            <div class="list-body">
+              <div class="list-title">${esc(c.last_name)}, ${esc(c.first_name)}</div>
+              <div class="list-sub">${fmtPhone(c.phone) || c.email || 'No contact info'}</div>
+              <div class="list-meta">
+                ${c.rate ? '<span class="list-rate">$' + Number(c.rate).toFixed(0) + '</span>' : ''}
+                ${dogText ? '<span class="list-badge">🐾 ' + dogText + '</span>' : ''}
+              </div>
+              ${prospectStatus}
+              ${clientStatus}
+            </div>
+            <button class="list-edit-btn" onclick="event.stopPropagation();openCustomerForm(${c.id})" title="Edit">✏️</button>
+          </div>
+          <div id="detail-${c.id}" style="display:none"></div>
         </div>
-        <div id="detail-${c.id}" style="display:none"></div>
       `;
     }
 
@@ -87,11 +122,16 @@ async function loadCustomers() {
 async function toggleCustomer(id, forceOpen) {
   const panel = document.getElementById('detail-' + id);
   if (!panel) return;
+  const wrapper = document.getElementById('wrapper-' + id);
   if (panel.style.display !== 'none' && !forceOpen) {
     panel.style.display = 'none';
+    wrapper?.classList.remove('expanded');
     _expandedCustomer = null;
     return;
   }
+  // Collapse any previously expanded item
+  document.querySelectorAll('.customer-wrapper.expanded').forEach(el => el.classList.remove('expanded'));
+  wrapper?.classList.add('expanded');
   _expandedCustomer = id;
   try {
     const c = await api('/customers/' + id);
@@ -141,7 +181,6 @@ async function toggleCustomer(id, forceOpen) {
         <div class="detail-actions">
           <button class="btn btn-primary btn-sm" onclick="openEmailCompose(${c.id}, '${esc(c.first_name)}', '${esc(c.last_name)}', '${esc(c.email || '')}')">✉️ Email</button>
           <button class="btn btn-primary btn-sm" onclick="openDocGenerator(${c.id},'invoice')">📄 Invoice</button>
-          <button class="btn btn-outline btn-sm" onclick="openDocGenerator(${c.id},'proposal')">📋 Proposal</button>
           <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${c.id})">Delete Client</button>
         </div>
         <div id="custDocs-${c.id}"></div>

@@ -3,7 +3,34 @@ const router = express.Router();
 const db = require('../lib/db');
 
 let sendAppointmentEmail;
-try { sendAppointmentEmail = require('../lib/email').sendAppointmentEmail; } catch { sendAppointmentEmail = null; }
+let sendBatchAppointmentEmail;
+try {
+  const emailLib = require('../lib/email');
+  sendAppointmentEmail = emailLib.sendAppointmentEmail;
+  sendBatchAppointmentEmail = emailLib.sendBatchAppointmentEmail;
+} catch {
+  sendAppointmentEmail = null;
+  sendBatchAppointmentEmail = null;
+}
+
+function newBatchId() {
+  return 'b_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+}
+
+function fetchApptWithJoins(id) {
+  const row = db.prepare(`
+    SELECT a.*,
+      c.first_name || ' ' || c.last_name as customer_name, c.email as customer_email, c.address as customer_address,
+      e.first_name || ' ' || e.last_name as employee_name, e.email as employee_email,
+      s.name as service_name
+    FROM appointments a
+    JOIN customers c ON c.id = a.customer_id
+    JOIN employees e ON e.id = a.employee_id JOIN services s ON s.id = a.service_id
+    WHERE a.id = ?
+  `).get(id);
+  if (row) attachDogInfo(row);
+  return row;
+}
 
 // Email quiet hours: only send between 8am-8pm Eastern
 function isQuietHours() {
@@ -122,6 +149,55 @@ router.post('/appointments', async (req, res) => {
   res.json({ ok: true, id: apptId, email_sent: emailSent, email_queued: emailQueued });
 });
 
+// Batch-create appointments: one POST, one email per recipient for the whole run
+router.post('/appointments/batch', async (req, res) => {
+  const { customer_id, dog_ids, employee_id, service_id, notes, visits } = req.body;
+  if (!customer_id || !employee_id || !service_id || !Array.isArray(dog_ids) || !dog_ids.length || !Array.isArray(visits) || !visits.length) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  for (const v of visits) {
+    if (!v.start_time || !v.end_time) return res.status(400).json({ error: 'Each visit needs start_time and end_time' });
+  }
+
+  const batchId = newBatchId();
+  const ids = [];
+
+  const insertAppt = db.prepare(
+    'INSERT INTO appointments (customer_id, dog_id, employee_id, service_id, start_time, end_time, notes, batch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  );
+  const insertDog = db.prepare('INSERT INTO appointment_dogs (appointment_id, dog_id) VALUES (?, ?)');
+
+  const tx = db.transaction(() => {
+    for (const v of visits) {
+      const result = insertAppt.run(customer_id, dog_ids[0], employee_id, service_id, v.start_time, v.end_time, notes || null, batchId);
+      const apptId = result.lastInsertRowid;
+      for (const did of dog_ids) insertDog.run(apptId, did);
+      ids.push(apptId);
+    }
+  });
+  tx();
+
+  let emailSent = false;
+  let emailQueued = false;
+  if (sendBatchAppointmentEmail && !isQuietHours()) {
+    try {
+      const appts = ids.map(fetchApptWithJoins);
+      await sendBatchAppointmentEmail(appts);
+      const markSent = db.prepare('UPDATE appointments SET email_sent = 1 WHERE id = ?');
+      const markAll = db.transaction(() => { for (const id of ids) markSent.run(id); });
+      markAll();
+      emailSent = true;
+    } catch (err) {
+      console.error('Batch email send failed:', err.message);
+    }
+  } else if (sendBatchAppointmentEmail && isQuietHours()) {
+    emailQueued = true;
+    console.log('Batch ' + batchId + ' email queued — quiet hours (will send at 8am ET)');
+  }
+
+  res.json({ ok: true, ids, batch_id: batchId, email_sent: emailSent, email_queued: emailQueued });
+});
+
 // Update appointment
 router.put('/appointments/:id', (req, res) => {
   const { customer_id, dog_ids, dog_id, employee_id, service_id, start_time, end_time, notes, status } = req.body;
@@ -149,9 +225,22 @@ router.delete('/appointments/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// Process queued emails (called by background job in server.js)
+// Process queued emails (called by background job in server.js).
+// Groups by batch_id so multi-visit bookings get a single batched email.
+// SECURITY: re-entrancy guard. The interval fires every 60s; if SMTP sends
+// take longer than 60s the next tick selects the same email_sent=0 rows and
+// double-sends. Module-level _emailJobRunning guards against overlap.
+// (See also: project memory "no double sends".)
+let _emailJobRunning = false;
 async function sendPendingEmails() {
+  if (_emailJobRunning) return;
   if (!sendAppointmentEmail || isQuietHours()) return;
+  _emailJobRunning = true;
+  try { return await _sendPendingEmailsInner(); }
+  finally { _emailJobRunning = false; }
+}
+
+async function _sendPendingEmailsInner() {
   const pending = db.prepare(`
     SELECT a.*,
       c.first_name || ' ' || c.last_name as customer_name, c.email as customer_email, c.address as customer_address,
@@ -161,12 +250,39 @@ async function sendPendingEmails() {
     JOIN customers c ON c.id = a.customer_id
     JOIN employees e ON e.id = a.employee_id JOIN services s ON s.id = a.service_id
     WHERE a.email_sent = 0 AND a.status = 'scheduled'
+    ORDER BY a.start_time
   `).all();
+
+  const batches = new Map();
+  const singles = [];
   for (const appt of pending) {
+    attachDogInfo(appt);
+    if (appt.batch_id) {
+      if (!batches.has(appt.batch_id)) batches.set(appt.batch_id, []);
+      batches.get(appt.batch_id).push(appt);
+    } else {
+      singles.push(appt);
+    }
+  }
+
+  const markSent = db.prepare('UPDATE appointments SET email_sent = 1 WHERE id = ?');
+
+  for (const [batchId, appts] of batches) {
+    if (!sendBatchAppointmentEmail) break;
     try {
-      attachDogInfo(appt);
+      await sendBatchAppointmentEmail(appts);
+      const tx = db.transaction(() => { for (const a of appts) markSent.run(a.id); });
+      tx();
+      console.log('Sent queued batch email ' + batchId + ' (' + appts.length + ' visits)');
+    } catch (err) {
+      console.error('Queued batch email failed for ' + batchId + ':', err.message);
+    }
+  }
+
+  for (const appt of singles) {
+    try {
       await sendAppointmentEmail(appt);
-      db.prepare('UPDATE appointments SET email_sent = 1 WHERE id = ?').run(appt.id);
+      markSent.run(appt.id);
       console.log('Sent queued email for appointment ' + appt.id);
     } catch (err) {
       console.error('Queued email failed for appointment ' + appt.id + ':', err.message);

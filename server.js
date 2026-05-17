@@ -2,22 +2,67 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const crypto = require('crypto');
 const { requireAuth, requireRole } = require('./lib/auth');
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 8081;
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '64kb' }));
+app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 const SqliteStore = require('./lib/session-store');
 app.use(session({
   store: SqliteStore(),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: 'lax', maxAge: 8 * 3600 * 1000 }
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV !== 'development',
+    maxAge: 8 * 3600 * 1000,
+  },
 }));
+
+// HMAC-token check for public calendar feeds. Mirrors the generator in lib/email.js.
+function verifyCalToken(prefix, id, providedToken) {
+  if (!providedToken || typeof providedToken !== 'string') return false;
+  const secret = process.env.BARKSTROLL_CAL_SECRET || process.env.SESSION_SECRET || '';
+  if (!secret) return false;
+  const expected = crypto.createHmac('sha256', secret).update(prefix + ':' + String(id)).digest('hex').slice(0, 16);
+  if (providedToken.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(providedToken), Buffer.from(expected));
+}
+
+// Tiny in-memory rate limiter for public endpoints. No new dep.
+// SECURITY: every unique source IP creates an entry. Without pruning the Map
+// grows unboundedly across weeks of public traffic / bot scans, eventually
+// pushing the process toward OOM. Sweep expired entries opportunistically.
+function rateLimit({ windowMs, max }) {
+  const hits = new Map();
+  const PRUNE_THRESHOLD = 5000;
+  return (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    const e = hits.get(ip);
+    if (!e || e.resetAt < now) {
+      if (hits.size > PRUNE_THRESHOLD) {
+        for (const [k, v] of hits) {
+          if (v.resetAt < now) hits.delete(k);
+        }
+      }
+      hits.set(ip, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    e.count++;
+    if (e.count > max) return res.status(429).json({ error: 'Too many requests' });
+    next();
+  };
+}
+const contactLimiter = rateLimit({ windowMs: 60_000, max: 4 });
 
 // Login page
 app.get('/portal', (_req, res) => {
@@ -42,8 +87,41 @@ app.use('/api/portal', requireAuth, require('./routes/portal'));
 
 // Public .ics download (no auth — linked from emails)
 const db = require('./lib/db');
-const { generateICS } = require('./lib/ics');
+const { generateICS, generateBatchICS } = require('./lib/ics');
+
+// Public batched .ics download (multi-visit bookings — linked from emails).
+// HMAC token in `?t=` prevents enumeration by ID; without it, every customer's
+// name, email, address, and walker assignment was scrapeable.
+app.get('/admin/cal/batch/:batch_id.ics', (req, res) => {
+  if (!verifyCalToken('batch', req.params.batch_id, req.query.t)) return res.status(404).send('Not found');
+  const rows = db.prepare(`
+    SELECT a.*,
+      c.first_name || ' ' || c.last_name as customer_name, c.email as customer_email, c.address as customer_address,
+      e.first_name || ' ' || e.last_name as employee_name, e.email as employee_email,
+      s.name as service_name
+    FROM appointments a
+    JOIN customers c ON c.id = a.customer_id
+    JOIN employees e ON e.id = a.employee_id JOIN services s ON s.id = a.service_id
+    WHERE a.batch_id = ?
+    ORDER BY a.start_time
+  `).all(req.params.batch_id);
+  if (!rows.length) return res.status(404).send('Not found');
+  for (const appt of rows) {
+    const dogs = db.prepare(
+      'SELECT d.id, d.name, d.breed FROM appointment_dogs ad JOIN dogs d ON d.id = ad.dog_id WHERE ad.appointment_id = ?'
+    ).all(appt.id);
+    appt.dogs = dogs;
+    appt.dog_names = dogs.map(d => d.name).join(', ');
+    appt.dog_names_with_breed = dogs.map(d => d.name + (d.breed ? ' (' + d.breed + ')' : '')).join(', ');
+  }
+  const attendeeEmails = [rows[0].customer_email, rows[0].employee_email].filter(Boolean);
+  const ics = generateBatchICS(rows, attendeeEmails);
+  res.set({ 'Content-Type': 'text/calendar', 'Content-Disposition': 'attachment; filename=visits.ics' });
+  res.send(ics);
+});
+
 app.get('/admin/cal/:id.ics', (req, res) => {
+  if (!verifyCalToken('appt', req.params.id, req.query.t)) return res.status(404).send('Not found');
   const appt = db.prepare(`
     SELECT a.*,
       c.first_name || ' ' || c.last_name as customer_name, c.email as customer_email, c.address as customer_address,
@@ -69,9 +147,12 @@ app.get('/admin/cal/:id.ics', (req, res) => {
 });
 
 // Public contact form endpoint (no auth required)
-app.post('/api/contact', async (req, res) => {
+app.post('/api/contact', contactLimiter, async (req, res) => {
   try {
-    const { name, phone, email, dog_names } = req.body;
+    const { name, phone, email, dog_names, city, out_of_area, website } = req.body;
+    // Honeypot: real users never fill this hidden field. Bots do.
+    // Return 200 so they don't learn the form is gated.
+    if (website && String(website).trim() !== '') return res.json({ ok: true });
     if (!name || !email) return res.status(400).json({ error: 'Name and email are required' });
 
     // Split name into first/last
@@ -83,7 +164,10 @@ app.post('/api/contact', async (req, res) => {
     const existing = db.prepare('SELECT id FROM customers WHERE email = ?').get(email.trim());
     if (!existing) {
       // Create as prospect
-      const notes = 'Form submission ' + new Date().toLocaleDateString('en-US') + '.';
+      const submittedOn = new Date().toLocaleDateString('en-US');
+      const cityPart = city ? ' City: ' + city + '.' : '';
+      const flag = out_of_area ? '[OUT OF AREA] ' : '';
+      const notes = flag + 'Form submission ' + submittedOn + '.' + cityPart;
       const result = db.prepare(
         "INSERT INTO customers (first_name, last_name, email, phone, notes, status) VALUES (?, ?, ?, ?, ?, 'prospect')"
       ).run(first_name, last_name, email.trim(), phone || null, notes);
@@ -97,6 +181,17 @@ app.post('/api/contact', async (req, res) => {
       }
     }
 
+    // Notify Scott (owner) — branded, contains every field. Lead-safe: log on failure
+    // but never break the request, so a mailer outage can't 500 the form.
+    try {
+      const { sendContactFormNotification } = require('./lib/email');
+      await sendContactFormNotification({
+        name, email: email.trim(), phone, dog_names, city, out_of_area
+      });
+    } catch (notifyErr) {
+      console.error('[contact] admin notification failed:', notifyErr.message);
+    }
+
     // Send branded welcome email via BPD Mailer
     const MAILER_URL = process.env.BPD_MAILER_URL;
     const MAILER_KEY = process.env.BPD_MAILER_API_KEY;
@@ -107,7 +202,7 @@ app.post('/api/contact', async (req, res) => {
           headers: { 'Content-Type': 'application/json', 'X-API-Key': MAILER_KEY },
           body: JSON.stringify({
             to: email.trim(),
-            subject: 'Thanks for reaching out! — Bridgeville Bark & Stroll',
+            subject: 'Thanks for reaching out, Bridgeville Bark and Stroll',
             body: 'Hi ' + first_name + ',\n\nThank you for your interest in Bridgeville Bark & Stroll! We received your request and will get back to you within one business day.\n\nWe look forward to meeting you and ' + (dog_names || 'your pup') + '!\n\nScott\nBridgeville Bark & Stroll',
             sent_by: 'System'
           })
@@ -127,24 +222,39 @@ app.post('/api/contact', async (req, res) => {
 // Auth routes (no auth required)
 app.use('/admin/api', require('./routes/auth'));
 
-// Protected API routes
-app.use('/admin/api', requireAuth, require('./routes/customers'));
-app.use('/admin/api', requireAuth, require('./routes/employees'));
-app.use('/admin/api', requireAuth, require('./routes/services'));
-app.use('/admin/api', requireAuth, require('./routes/appointments'));
-app.use('/admin/api', requireAuth, require('./routes/documents'));
-app.use('/admin/api', requireAuth, require('./routes/earnings'));
-app.use('/admin/api', requireAuth, require('./routes/email'));
-app.use('/admin/api', requireAuth, require('./routes/notes'));
+// Protected API routes — admin role required. Previously any authenticated
+// user (customer / walker portal sessions included) could enumerate the entire
+// customer list, employee directory, earnings, and trigger bulk email. The
+// portal API at /api/portal is gated separately above with its own role checks.
+const adminOnly = [requireAuth, requireRole('admin')];
+app.use('/admin/api', adminOnly, require('./routes/customers'));
+app.use('/admin/api', adminOnly, require('./routes/employees'));
+app.use('/admin/api', adminOnly, require('./routes/services'));
+app.use('/admin/api', adminOnly, require('./routes/appointments'));
+app.use('/admin/api', adminOnly, require('./routes/documents'));
+app.use('/admin/api', adminOnly, require('./routes/earnings'));
+app.use('/admin/api', adminOnly, require('./routes/email'));
+app.use('/admin/api', adminOnly, require('./routes/notes'));
+app.use('/admin/api', adminOnly, require('./routes/gallery'));
 
 // SPA fallback — all /admin/* non-API routes serve the app shell
-app.get('/admin/*', requireAuth, (_req, res) => {
+app.get('/admin/*', requireAuth, requireRole('admin'), (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
 // Redirect /admin to /admin/app
 app.get('/admin', (_req, res) => {
   res.redirect('/admin/app');
+});
+
+// JSON error handler — body-parser errors and unhandled throws come here.
+// Without it, Express returns a default HTML error page that leaks framework details.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, _next) => {
+  if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON' });
+  if (err && err.type === 'entity.too.large') return res.status(413).json({ error: 'Payload too large' });
+  console.error('[barkstroll] unhandled:', err && err.message);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 app.listen(PORT, '127.0.0.1', () => {

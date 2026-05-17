@@ -194,95 +194,237 @@ async function openApptForm() {
     ]);
   } catch (e) { toast('Failed to load data', 'err'); return; }
 
+  customers = customers.filter(function(c) { return c.status !== 'prospect'; });
   if (!customers.length) { toast('Add a client first', 'err'); return; }
   if (!employees.length) { toast('Add a team member first', 'err'); return; }
 
-  const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(_calDay).padStart(2,'0')}`;
+  // Build week chips centered on selected day
+  const selDate = new Date(_calYear, _calMonth, _calDay);
+  const dow = selDate.getDay();
+  const weekStart = new Date(selDate);
+  weekStart.setDate(selDate.getDate() - dow);
 
-  openModal(`
-    <div class="modal-header"><h2>New Appointment</h2><button class="modal-close">&times;</button></div>
-    <form id="apptForm">
-      <div class="form-group">
-        <label>Client *</label>
-        <select name="customer_id" id="apptCustomer" required>
-          <option value="">Select client...</option>
-          ${customers.map(c => `<option value="${c.id}">${esc(c.last_name)}, ${esc(c.first_name)}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Dogs *</label>
-        <div id="apptDogs" style="padding:4px 0"><span style="color:var(--g-text-sec);font-size:.85rem">Select client first...</span></div>
-      </div>
-      <div class="form-group">
-        <label>Team Member *</label>
-        <select name="employee_id" required>
-          ${employees.map(e => `<option value="${e.id}">${esc(e.first_name)} ${esc(e.last_name)}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Service *</label>
-        <select name="service_id" id="apptService" required>
-          ${services.map(s => `<option value="${s.id}" data-dur="${s.duration_min}">${esc(s.name)} (${s.duration_min} min)</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Date *</label><input type="date" name="date" value="${dateStr}" required></div>
-        <div class="form-group"><label>Time *</label><input type="time" name="time" value="09:00" required></div>
-      </div>
-      <div class="form-group"><label>Notes</label><textarea name="notes" placeholder="Optional notes..."></textarea></div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
-        <button type="submit" class="btn btn-primary">Create Appointment</button>
-      </div>
-    </form>
-  `);
+  const dayAbbr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const monthAbbr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function buildChips(ws, selIso) {
+    let h = '';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(ws);
+      d.setDate(ws.getDate() + i);
+      const iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      const sel = iso === selIso ? ' selected' : '';
+      h += '<button type="button" class="day-chip' + sel + '" data-date="' + iso + '">'
+        + '<span class="day-name">' + dayAbbr[i] + '</span>'
+        + '<span class="day-date">' + monthAbbr[d.getMonth()] + ' ' + d.getDate() + '</span>'
+        + '</button>';
+    }
+    return h;
+  }
+
+  function weekLabel(ws) {
+    const we = new Date(ws);
+    we.setDate(ws.getDate() + 6);
+    return monthAbbr[ws.getMonth()] + ' ' + ws.getDate() + ' \u2014 ' + monthAbbr[we.getMonth()] + ' ' + we.getDate();
+  }
+
+  const selIso = _calYear + '-' + String(_calMonth+1).padStart(2,'0') + '-' + String(_calDay).padStart(2,'0');
+
+  openModal(
+    '<div class="modal-header"><h2>New Appointment</h2><button class="modal-close">&times;</button></div>'
+    + '<form id="apptForm">'
+    + '<div class="form-group"><label>Client *</label>'
+    + '<select name="customer_id" id="apptCustomer" required><option value="">Select client...</option>'
+    + customers.map(function(c) { return '<option value="' + c.id + '">' + esc(c.last_name) + ', ' + esc(c.first_name) + '</option>'; }).join('')
+    + '</select></div>'
+    + '<div class="form-group"><label>Dogs *</label><div id="apptDogs" style="padding:4px 0"><span style="color:var(--g-text-sec);font-size:.85rem">Select client first...</span></div></div>'
+    + '<div class="form-group"><label>Team Member *</label><select name="employee_id" required>'
+    + employees.map(function(e) { return '<option value="' + e.id + '">' + esc(e.first_name) + ' ' + esc(e.last_name) + '</option>'; }).join('')
+    + '</select></div>'
+    + '<div class="form-group"><label>Service *</label><select name="service_id" id="apptService" required>'
+    + services.map(function(s) { return '<option value="' + s.id + '" data-dur="' + s.duration_min + '">' + esc(s.name) + ' (' + s.duration_min + ' min)</option>'; }).join('')
+    + '</select></div>'
+    + '<div class="form-group"><label>Days * <span style="font-weight:400;text-transform:none;font-size:.7rem;color:var(--text-soft)">(tap multiple)</span></label>'
+    + '<div class="day-chips-nav"><button type="button" id="weekPrev" title="Previous week">&larr;</button>'
+    + '<span class="day-chips-label" id="weekLabel">' + weekLabel(weekStart) + '</span>'
+    + '<button type="button" id="weekNext" title="Next week">&rarr;</button></div>'
+    + '<div class="day-chips" id="dayChips">' + buildChips(weekStart, selIso) + '</div></div>'
+    + '<div class="form-group"><label>Time *</label><input type="time" name="time" value="09:00" required></div>'
+    + '<div class="form-group"><label>Notes</label><textarea name="notes" placeholder="Optional notes..."></textarea></div>'
+    + '<div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>'
+    + '<button type="submit" class="btn btn-primary" id="apptSubmitBtn">Create Appointment</button></div>'
+    + '</form>'
+  );
+
+  // Week navigation state
+  var _weekOffset = 0;
+  var _baseWeekStart = new Date(weekStart);
+
+  function currentWeekStart() {
+    var ws = new Date(_baseWeekStart);
+    ws.setDate(_baseWeekStart.getDate() + _weekOffset * 7);
+    return ws;
+  }
+
+  function rebuildChips() {
+    var ws = currentWeekStart();
+    document.getElementById('weekLabel').textContent = weekLabel(ws);
+    var container = document.getElementById('dayChips');
+    container.textContent = '';
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(ws);
+      d.setDate(ws.getDate() + i);
+      var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'day-chip';
+      btn.dataset.date = iso;
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'day-name';
+      nameSpan.textContent = dayAbbr[i];
+      var dateSpan = document.createElement('span');
+      dateSpan.className = 'day-date';
+      dateSpan.textContent = monthAbbr[d.getMonth()] + ' ' + d.getDate();
+      btn.appendChild(nameSpan);
+      btn.appendChild(dateSpan);
+      btn.onclick = function() { this.classList.toggle('selected'); updateSubmitLabel(); };
+      frag.appendChild(btn);
+    }
+    container.appendChild(frag);
+    updateSubmitLabel();
+  }
+
+  function bindChipClicks() {
+    document.querySelectorAll('#dayChips .day-chip').forEach(function(chip) {
+      chip.onclick = function() { chip.classList.toggle('selected'); updateSubmitLabel(); };
+    });
+  }
+
+  function updateSubmitLabel() {
+    var count = document.querySelectorAll('#dayChips .day-chip.selected').length;
+    var btn = document.getElementById('apptSubmitBtn');
+    btn.textContent = count > 1 ? 'Create ' + count + ' Appointments' : 'Create Appointment';
+  }
+
+  bindChipClicks();
+  document.getElementById('weekPrev').onclick = function() { _weekOffset--; rebuildChips(); };
+  document.getElementById('weekNext').onclick = function() { _weekOffset++; rebuildChips(); };
 
   document.getElementById('apptCustomer').onchange = async function() {
-    const dogContainer = document.getElementById('apptDogs');
-    dogContainer.innerHTML = '<span style="color:var(--g-text-sec);font-size:.85rem">Loading...</span>';
-    if (!this.value) { dogContainer.innerHTML = '<span style="color:var(--g-text-sec);font-size:.85rem">Select client first...</span>'; return; }
+    var dogContainer = document.getElementById('apptDogs');
+    dogContainer.textContent = '';
+    var loadMsg = document.createElement('span');
+    loadMsg.style.cssText = 'color:var(--g-text-sec);font-size:.85rem';
+    loadMsg.textContent = 'Loading...';
+    dogContainer.appendChild(loadMsg);
+    if (!this.value) { loadMsg.textContent = 'Select client first...'; return; }
     try {
-      const dogs = await api('/customers/' + this.value + '/dogs');
+      var dogs = await api('/customers/' + this.value + '/dogs');
+      dogContainer.textContent = '';
       if (!dogs.length) {
-        dogContainer.innerHTML = '<span style="color:var(--g-text-sec);font-size:.85rem">No dogs — add one in Clients tab</span>';
+        var noMsg = document.createElement('span');
+        noMsg.style.cssText = 'color:var(--g-text-sec);font-size:.85rem';
+        noMsg.textContent = 'No dogs \u2014 add one in Clients tab';
+        dogContainer.appendChild(noMsg);
         return;
       }
-      dogContainer.innerHTML = dogs.map(d =>
-        `<label style="display:block;padding:4px 0;cursor:pointer;color:var(--g-text)"><input type="checkbox" name="dog_ids" value="${d.id}" checked style="margin-right:6px">${esc(d.name)}${d.breed ? ' (' + esc(d.breed) + ')' : ''}</label>`
-      ).join('');
-    } catch { dogContainer.innerHTML = '<span style="color:var(--g-text-sec);font-size:.85rem">Error loading dogs</span>'; }
+      dogs.forEach(function(d) {
+        var label = document.createElement('label');
+        label.style.cssText = 'display:block;padding:4px 0;cursor:pointer;color:var(--g-text)';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.name = 'dog_ids';
+        cb.value = d.id;
+        cb.checked = true;
+        cb.style.marginRight = '6px';
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(d.name + (d.breed ? ' (' + d.breed + ')' : '')));
+        dogContainer.appendChild(label);
+      });
+    } catch(ex) {
+      dogContainer.textContent = '';
+      var errMsg = document.createElement('span');
+      errMsg.style.cssText = 'color:var(--g-text-sec);font-size:.85rem';
+      errMsg.textContent = 'Error loading dogs';
+      dogContainer.appendChild(errMsg);
+    }
   };
 
-  document.getElementById('apptForm').onsubmit = async (e) => {
+  document.getElementById('apptForm').onsubmit = async function(e) {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd);
-    const dog_ids = [...document.querySelectorAll('#apptDogs input[name="dog_ids"]:checked')].map(cb => parseInt(cb.value));
+    var fd = new FormData(e.target);
+    var data = Object.fromEntries(fd);
+    var dog_ids = Array.from(document.querySelectorAll('#apptDogs input[name="dog_ids"]:checked')).map(function(cb) { return parseInt(cb.value); });
     if (!data.customer_id || !dog_ids.length) { toast('Select a client and at least one dog', 'err'); return; }
 
-    const svc = document.getElementById('apptService');
-    const dur = parseInt(svc.selectedOptions[0]?.dataset.dur || '30');
-    const startDt = new Date(data.date + 'T' + data.time);
-    const endDt = new Date(startDt.getTime() + dur * 60000);
+    var selectedDates = Array.from(document.querySelectorAll('#dayChips .day-chip.selected')).map(function(c) { return c.dataset.date; }).sort();
+    if (!selectedDates.length) { toast('Select at least one day', 'err'); return; }
 
-    const body = {
-      customer_id: parseInt(data.customer_id),
-      dog_ids,
-      employee_id: parseInt(data.employee_id),
-      service_id: parseInt(data.service_id),
-      start_time: startDt.toISOString(),
-      end_time: endDt.toISOString(),
-      notes: data.notes || null
-    };
+    var svc = document.getElementById('apptService');
+    var dur = parseInt(svc.selectedOptions[0] && svc.selectedOptions[0].dataset.dur || '30');
+    var submitBtn = document.getElementById('apptSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating...';
 
-    try {
-      const result = await api('/appointments', { method: 'POST', body });
-      closeModal();
-      toast(result.email_sent ? 'Appointment created & email sent!' : result.email_queued ? 'Appointment created! Email will send at 8am' : 'Appointment created (email not configured yet)');
-      _calYear = startDt.getFullYear();
-      _calMonth = startDt.getMonth();
-      _calDay = startDt.getDate();
-      renderCal();
-    } catch (err) { toast(err.message, 'err'); }
+    var visits = selectedDates.map(function(dateStr) {
+      var startDt = new Date(dateStr + 'T' + data.time);
+      var endDt = new Date(startDt.getTime() + dur * 60000);
+      return { start_time: startDt.toISOString(), end_time: endDt.toISOString() };
+    });
+
+    var created = 0, emailed = 0, queued = 0, failed = 0;
+
+    if (visits.length > 1) {
+      // Multi-visit booking → one batched POST → one email per recipient
+      try {
+        var result = await api('/appointments/batch', { method: 'POST', body: {
+          customer_id: parseInt(data.customer_id),
+          dog_ids: dog_ids,
+          employee_id: parseInt(data.employee_id),
+          service_id: parseInt(data.service_id),
+          notes: data.notes || null,
+          visits: visits
+        }});
+        created = (result.ids || []).length;
+        if (result.email_sent) emailed = 1;
+        else if (result.email_queued) queued = 1;
+      } catch (err) {
+        failed = visits.length;
+      }
+    } else {
+      // Single visit → keep existing single-email path
+      var body = {
+        customer_id: parseInt(data.customer_id),
+        dog_ids: dog_ids,
+        employee_id: parseInt(data.employee_id),
+        service_id: parseInt(data.service_id),
+        start_time: visits[0].start_time,
+        end_time: visits[0].end_time,
+        notes: data.notes || null
+      };
+      try {
+        var singleResult = await api('/appointments', { method: 'POST', body: body });
+        created = 1;
+        if (singleResult.email_sent) emailed = 1;
+        else if (singleResult.email_queued) queued = 1;
+      } catch (err) {
+        failed = 1;
+      }
+    }
+
+    closeModal();
+
+    var msg = created + ' appointment' + (created === 1 ? '' : 's') + ' created';
+    if (emailed) msg += ' \u00b7 1 batched email sent';
+    else if (queued) msg += ' \u00b7 email queued for 8am';
+    if (failed) msg += ' \u00b7 ' + failed + ' failed';
+    toast(msg, failed ? 'err' : undefined);
+
+    var firstDate = new Date(selectedDates[0] + 'T12:00:00');
+    _calYear = firstDate.getFullYear();
+    _calMonth = firstDate.getMonth();
+    _calDay = firstDate.getDate();
+    renderCal();
   };
 }

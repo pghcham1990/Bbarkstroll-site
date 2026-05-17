@@ -47,7 +47,7 @@ async function render_docgen(el) {
   }
 
   const c = _docGenState.customer;
-  const typeLabel = docType === 'proposal' ? 'Proposal' : 'Invoice';
+  const typeLabel = 'Invoice';
   const dogNames = c.dogs.map(d => d.name + (d.breed ? ' (' + d.breed + ')' : '')).join(', ') || 'No dogs on file';
 
   el.innerHTML = `
@@ -63,10 +63,6 @@ async function render_docgen(el) {
           <div style="font-weight:700;font-size:.95rem">${esc(c.first_name)} ${esc(c.last_name)}</div>
           <div style="font-size:.8rem;color:var(--text-soft)">${esc(c.address || 'No address')}</div>
           <div style="font-size:.78rem;color:var(--text-soft);margin-top:.15rem">🐾 ${esc(dogNames)}</div>
-        </div>
-        <div style="display:flex;gap:.35rem">
-          <button class="btn btn-sm ${docType === 'invoice' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocType('invoice')">Invoice</button>
-          <button class="btn btn-sm ${docType === 'proposal' ? 'btn-primary' : 'btn-outline'}" onclick="switchDocType('proposal')">Proposal</button>
         </div>
       </div>
     </div>

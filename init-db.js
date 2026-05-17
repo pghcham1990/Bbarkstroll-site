@@ -64,6 +64,7 @@ db.exec(`
     status      TEXT    NOT NULL DEFAULT 'scheduled',
     notes       TEXT,
     email_sent  INTEGER NOT NULL DEFAULT 0,
+    batch_id    TEXT,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
   );
@@ -76,6 +77,7 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_appointments_start ON appointments(start_time);
   CREATE INDEX IF NOT EXISTS idx_appointments_employee ON appointments(employee_id);
+  CREATE INDEX IF NOT EXISTS idx_appointments_batch ON appointments(batch_id);
   CREATE INDEX IF NOT EXISTS idx_dogs_customer ON dogs(customer_id);
 `);
 
@@ -109,7 +111,7 @@ if (adminCount === 0) {
   const salt = crypto.randomBytes(32).toString('hex');
   const hash = crypto.scryptSync(password, salt, 64).toString('hex');
   db.prepare('INSERT INTO users (username, password_hash, password_salt, display_name, email, role) VALUES (?, ?, ?, ?, ?, ?)').run(
-    'scott', hash, salt, 'Scott', 'scott.rocca.pa@gmail.com', 'admin'
+    'scott', hash, salt, 'Scott', 'scott@barkstroll.com', 'admin'
   );
   console.log('Created admin user: scott / ' + password);
 }

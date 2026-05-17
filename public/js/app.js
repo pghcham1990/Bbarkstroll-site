@@ -77,6 +77,16 @@ function fmtDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' });
 }
+// Compact date for card badges: "May 17" same year, "May 17, 2025" otherwise. Always America/New_York.
+function fmtShortDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const opts = { timeZone: 'America/New_York', month: 'short', day: 'numeric' };
+  const nowYear = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', year: 'numeric' });
+  const dYear = d.toLocaleString('en-US', { timeZone: 'America/New_York', year: 'numeric' });
+  if (dYear !== nowYear) opts.year = 'numeric';
+  return d.toLocaleDateString('en-US', opts);
+}
 function fmtTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);

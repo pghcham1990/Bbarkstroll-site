@@ -279,9 +279,12 @@ router.post('/walker/decline/:id', requireRole('walker'), (req, res) => {
 });
 
 // POST /api/portal/report-issue — send bug report to Scott
+const escapeHtml = require('escape-html');
+function safeHeader(v) { return String(v || '').replace(/[\r\n]/g, ' ').slice(0, 200); }
+
 router.post('/report-issue', requireRole('customer', 'walker', 'admin'), async (req, res) => {
-  const { message } = req.body;
-  if (!message || !message.trim()) return res.status(400).json({ error: 'Please describe the issue' });
+  const message = String(req.body && req.body.message || '').slice(0, 4000);
+  if (!message.trim()) return res.status(400).json({ error: 'Please describe the issue' });
 
   const user = req.session.user;
   const nodemailer = require('nodemailer');
@@ -294,7 +297,7 @@ router.post('/report-issue', requireRole('customer', 'walker', 'admin'), async (
     await t.sendMail({
       from: `"Bark & Stroll Portal" <${process.env.GMAIL_USER}>`,
       to: process.env.GMAIL_USER,
-      subject: `Portal Issue Report from ${user.display_name}`,
+      subject: `Portal Issue Report from ${safeHeader(user.display_name)}`,
       html: `
         <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:500px;margin:0 auto">
           <div style="background:#c0392b;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0;text-align:center">
@@ -302,10 +305,10 @@ router.post('/report-issue', requireRole('customer', 'walker', 'admin'), async (
           </div>
           <div style="background:#ffffff;padding:24px;border:1px solid #e8e8e5;border-top:none;border-radius:0 0 12px 12px">
             <table style="width:100%;font-size:14px;border-collapse:collapse">
-              <tr><td style="padding:8px 0;color:#888;width:100px">From</td><td style="padding:8px 0;font-weight:600">${user.display_name}</td></tr>
-              <tr><td style="padding:8px 0;color:#888">Email</td><td style="padding:8px 0">${user.username}</td></tr>
-              <tr><td style="padding:8px 0;color:#888">Role</td><td style="padding:8px 0">${user.role}</td></tr>
-              <tr><td style="padding:8px 0;color:#888">Issue</td><td style="padding:8px 0">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td></tr>
+              <tr><td style="padding:8px 0;color:#888;width:100px">From</td><td style="padding:8px 0;font-weight:600">${escapeHtml(user.display_name)}</td></tr>
+              <tr><td style="padding:8px 0;color:#888">Email</td><td style="padding:8px 0">${escapeHtml(user.username)}</td></tr>
+              <tr><td style="padding:8px 0;color:#888">Role</td><td style="padding:8px 0">${escapeHtml(user.role)}</td></tr>
+              <tr><td style="padding:8px 0;color:#888">Issue</td><td style="padding:8px 0;white-space:pre-wrap">${escapeHtml(message)}</td></tr>
             </table>
           </div>
         </div>

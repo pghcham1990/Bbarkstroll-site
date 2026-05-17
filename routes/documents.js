@@ -170,16 +170,20 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
     const docNum = `#BBS-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
     const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    // Build services rows
+    // Build services rows.
+    // SECURITY: every docData.* field comes from an LLM JSON response. A prompt
+    // injection in the human-readable input can plant <script> / event-handler
+    // payloads in these strings, which then execute when the rendered HTML is
+    // viewed at /invoices/*.html. Escape everything that flows from the model.
     const serviceRows = docData.services.map(s => `
         <tr>
           <td>
             ${s.is_overnight ? '<div class="overnight-badge">Overnight</div>' : ''}
-            <div class="service-name">${s.name}</div>
-            <div class="service-detail">${s.detail}</div>
+            <div class="service-name">${escHtml(s.name)}</div>
+            <div class="service-detail">${escHtml(s.detail)}</div>
           </td>
-          <td><div class="service-detail">${s.date_time}</div></td>
-          <td class="service-price">${s.price}</td>
+          <td><div class="service-detail">${escHtml(s.date_time)}</div></td>
+          <td class="service-price">${escHtml(s.price)}</td>
         </tr>`).join('');
 
     // Payment section for invoices (not proposals)
@@ -202,7 +206,7 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bark & Stroll — ${docData.doc_label || (type === 'proposal' ? 'Proposal' : 'Invoice')}</title>
+<title>Bark & Stroll, ${escHtml(docData.doc_label || (type === 'proposal' ? 'Proposal' : 'Invoice'))}</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>${INVOICE_CSS}</style>
 </head>
@@ -218,7 +222,7 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
         </div>
       </div>
       <div class="invoice-meta">
-        <div class="invoice-label">${docData.doc_label || (type === 'proposal' ? 'Proposal' : 'Invoice')}</div>
+        <div class="invoice-label">${escHtml(docData.doc_label || (type === 'proposal' ? 'Proposal' : 'Invoice'))}</div>
         <div class="invoice-number">${docNum}</div>
         <div class="invoice-date">Issued: ${dateStr}</div>
       </div>
@@ -229,7 +233,7 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
         <p>(412) 992-1480 &nbsp;·&nbsp; barkstroll.com</p>
         <p>Bridgeville, PA</p>
       </div>
-      <div class="status-badge">${docData.status_badge || 'Payment Due Before Service'}</div>
+      <div class="status-badge">${escHtml(docData.status_badge || 'Payment Due Before Service')}</div>
     </div>
   </div>
 
@@ -243,8 +247,8 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
       </div>
       <div class="billing-section">
         <h3>Service Period</h3>
-        <p><strong>${docData.service_period_title}</strong></p>
-        <p style="margin-top:6px;">${docData.service_period_detail}</p>
+        <p><strong>${escHtml(docData.service_period_title)}</strong></p>
+        <p style="margin-top:6px;">${escHtml(docData.service_period_detail)}</p>
       </div>
     </div>
 
@@ -262,18 +266,18 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
     </table>
 
     <div class="totals">
-      <div class="totals-row"><span>Subtotal</span><span>${docData.subtotal}</span></div>
-      <div class="totals-row"><span>Tax</span><span>${docData.tax || '$0.00'}</span></div>
+      <div class="totals-row"><span>Subtotal</span><span>${escHtml(docData.subtotal)}</span></div>
+      <div class="totals-row"><span>Tax</span><span>${escHtml(docData.tax || '$0.00')}</span></div>
       <div class="totals-total">
         <span>Total ${type === 'proposal' ? 'Estimated' : 'Due'}</span>
-        <span>${docData.total}</span>
+        <span>${escHtml(docData.total)}</span>
       </div>
     </div>
 
     <div class="notes">
       <div>
         <h3>Care Notes</h3>
-        <p>${docData.care_notes}</p>
+        <p>${escHtml(docData.care_notes)}</p>
       </div>
       ${paymentSection}
     </div>

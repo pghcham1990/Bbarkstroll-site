@@ -11,9 +11,23 @@ async function render_reports(el) {
 
   let templates = [];
   try {
-    templates = await api('/reports/templates?source=barkstroll');
+    // Direct fetch (not api()) — reports proxy uses BPD's separate auth, so a
+    // 401 here means the upstream reports service is misconfigured, not that
+    // the admin session expired. The shared api() helper would bounce the
+    // user to /portal on any 401, which on 2026-05-04 made a Caddy env-var
+    // glitch look like a phantom logout in front of a customer.
+    const r = await fetch('/admin/api/reports/templates?source=barkstroll');
+    if (!r.ok) throw new Error('reports upstream HTTP ' + r.status);
+    templates = await r.json();
   } catch (e) {
-    el.querySelector('#reportsList').innerHTML = '<div class="empty"><div class="empty-text">Failed to load reports</div></div>';
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    const text = document.createElement('div');
+    text.className = 'empty-text';
+    text.textContent = 'Reports service temporarily unavailable. Try again in a minute.';
+    empty.appendChild(text);
+    const list = el.querySelector('#reportsList');
+    list.replaceChildren(empty);
     return;
   }
 
@@ -44,7 +58,7 @@ async function render_reports(el) {
           </div>` : ''}
           <div>
             <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px;">Send To</label>
-            <input type="text" id="reportRecipients_${t.slug}" value="scott.rocca.pa@gmail.com"
+            <input type="text" id="reportRecipients_${t.slug}" value="scott@barkstroll.com"
               style="padding:8px 12px;border-radius:var(--radius-sm);border:1px solid rgba(20,97,58,0.15);font-size:13px;width:260px;">
           </div>
           <button onclick="runReport('${t.slug}')"

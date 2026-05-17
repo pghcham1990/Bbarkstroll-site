@@ -116,6 +116,13 @@ body:not(.admin-app) {
 .list-actions{display:flex;gap:.25rem;flex-shrink:0}
 .list-edit-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid #e5e5e0;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;transition:all .15s;color:var(--text-soft)}
 .list-edit-btn:hover{border-color:var(--forest);color:var(--forest);background:var(--sage)}
+/* Card status line: small muted text for inquiry / last-service dates */
+.list-sub-mini{color:var(--text-soft);font-size:.62rem;font-weight:600;letter-spacing:.02em}
+/* Prospect status pills */
+.list-badge-replied{background:#d4edda;color:#155724}
+.list-badge-pending{background:#fdf3d7;color:#7a5b00}
+.list-badge-in{background:#dbeafe;color:#1e40af}
+.list-badge-out{background:#fde2e2;color:#9b1c1c}
 
 /* --- Search --- */
 .search-box{position:relative;margin-bottom:.85rem}
@@ -165,6 +172,18 @@ body:not(.admin-app) {
 .cal-day.today.selected{background:var(--forest);color:var(--white)}
 .cal-day.other-month{color:#ccc}
 .cal-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);position:absolute;bottom:3px}
+
+/* --- Multi-day chips (appointment form) --- */
+.day-chips{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0}
+.day-chip{padding:6px 10px;border:1.5px solid #e5e5e0;border-radius:20px;background:var(--white);font-size:.75rem;font-weight:600;cursor:pointer;transition:all .15s var(--ease);color:var(--text);line-height:1.2;text-align:center;min-width:0;flex:1 1 auto}
+.day-chip:hover{border-color:var(--forest);color:var(--forest)}
+.day-chip.selected{background:var(--forest);color:var(--white);border-color:var(--forest-deep)}
+.day-chip .day-name{display:block;font-size:.65rem;text-transform:uppercase;letter-spacing:.03em;opacity:.7}
+.day-chip .day-date{display:block;font-size:.8rem;font-weight:700}
+.day-chips-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.day-chips-nav button{background:none;border:none;font-size:.85rem;cursor:pointer;color:var(--text-soft);padding:2px 6px;transition:color .15s}
+.day-chips-nav button:hover{color:var(--forest)}
+.day-chips-label{font-size:.72rem;color:var(--text-soft);font-weight:600}
 .cal-day.selected .cal-dot{background:rgba(255,255,255,.85)}
 
 /* --- Day appointments --- */
@@ -540,12 +559,50 @@ body.admin-app::after {
   box-shadow: 0 4px 16px rgba(13,68,40,0.08);
 }
 .admin-app .list-item:active { background: var(--glass-hover) }
+.admin-app .customer-wrapper {
+  margin-bottom: 6px;
+  border-radius: var(--radius-sm);
+  transition: all .25s var(--ease);
+}
+.admin-app .customer-wrapper .list-item {
+  margin-bottom: 0;
+}
+.admin-app .customer-wrapper.expanded {
+  background: rgba(20,97,58,0.08);
+  border: 1.5px solid var(--forest);
+  border-left: 3.5px solid var(--forest);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 24px rgba(13,68,40,0.13);
+  padding: 2px;
+}
+.admin-app .customer-wrapper.expanded .list-item {
+  background: rgba(20,97,58,0.06);
+  border-color: transparent;
+  box-shadow: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.admin-app .customer-wrapper.expanded .list-item:hover {
+  transform: none;
+  background: rgba(20,97,58,0.06);
+}
+.admin-app .customer-wrapper.expanded .detail-panel {
+  border: none;
+  border-top: 1px solid rgba(20,97,58,0.12);
+  box-shadow: none;
+  margin-top: 0;
+  background: rgba(255,255,255,0.3);
+}
 .admin-app .list-icon { background: var(--sage); color: var(--forest) }
 .admin-app .list-icon.prospect { background: rgba(196,164,78,0.12); color: var(--gold) }
 .admin-app .list-title { color: var(--g-text) }
 .admin-app .list-sub { color: var(--g-text-sec) }
 .admin-app .list-badge { background: var(--sage); color: var(--forest-deep) }
 .admin-app .list-rate { background: var(--sage); color: var(--forest) }
+.admin-app .list-sub-mini { color: var(--g-text-sec) }
+.admin-app .list-badge-replied { background: rgba(46,204,113,0.18); color: #2ecc71 }
+.admin-app .list-badge-pending { background: rgba(196,164,78,0.18); color: var(--gold) }
+.admin-app .list-badge-in { background: rgba(52,152,219,0.18); color: #5db4e8 }
+.admin-app .list-badge-out { background: rgba(231,76,60,0.18); color: #e74c3c }
 .admin-app .list-edit-btn {
   border-color: var(--glass-border);
   color: var(--g-text-sec);

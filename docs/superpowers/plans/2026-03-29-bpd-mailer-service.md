@@ -156,8 +156,8 @@ if (!existing) {
   `).run(
     'barkstroll',
     'Bridgeville Bark & Stroll',
-    'scott.rocca.pa@gmail.com',
-    'mzovvicvzfcrsdrj',
+    'scott@barkstroll.com',
+    '<app-password>',
     'Bridgeville Bark & Stroll',
     apiKey,
     1

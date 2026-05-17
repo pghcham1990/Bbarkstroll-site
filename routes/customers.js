@@ -3,22 +3,37 @@ const router = express.Router();
 const db = require('../lib/db');
 
 // List customers (with optional search)
+// Extra computed fields per row:
+//   dog_count        — count of dogs on file
+//   note_count       — count of customer_notes timeline entries (used to infer "replied" for prospects)
+//   last_service_at  — most recent past appointment (status != cancelled, start_time <= now); null = never used us
+//   out_of_area      — 1 if prospect notes carry the [OUT OF AREA] tag written by the public contact form
 router.get('/customers', (req, res) => {
   try {
     const q = req.query.q;
+    const baseSelect = `
+      SELECT
+        c.*,
+        COUNT(DISTINCT d.id) AS dog_count,
+        COUNT(DISTINCT n.id) AS note_count,
+        MAX(CASE WHEN a.status != 'cancelled' AND a.start_time <= datetime('now') THEN a.start_time END) AS last_service_at,
+        CASE WHEN c.notes LIKE '[OUT OF AREA]%' THEN 1 ELSE 0 END AS out_of_area
+      FROM customers c
+      LEFT JOIN dogs d ON d.customer_id = c.id
+      LEFT JOIN customer_notes n ON n.customer_id = c.id
+      LEFT JOIN appointments a ON a.customer_id = c.id
+    `;
     let rows;
     if (q) {
       const like = `%${q}%`;
       rows = db.prepare(`
-        SELECT c.*, COUNT(d.id) as dog_count FROM customers c
-        LEFT JOIN dogs d ON d.customer_id = c.id
+        ${baseSelect}
         WHERE c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ? OR c.phone LIKE ?
         GROUP BY c.id ORDER BY c.last_name, c.first_name
       `).all(like, like, like, like);
     } else {
       rows = db.prepare(`
-        SELECT c.*, COUNT(d.id) as dog_count FROM customers c
-        LEFT JOIN dogs d ON d.customer_id = c.id
+        ${baseSelect}
         GROUP BY c.id ORDER BY c.last_name, c.first_name
       `).all();
     }

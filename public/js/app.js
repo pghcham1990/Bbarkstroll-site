@@ -13,7 +13,8 @@ const PAGE_TITLES = {
   employees: 'Team',
   docgen: 'Document Generator',
   messages: 'Messages',
-  reports: 'Reports'
+  reports: 'Reports',
+  applicants: 'Applicants'
 };
 
 /* --- API helper --- */

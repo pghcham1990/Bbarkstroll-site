@@ -199,5 +199,45 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_documents_file_id ON documents(file_id);
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS applicants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    full_name TEXT NOT NULL,
+    preferred_name TEXT,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    zip TEXT NOT NULL,
+    is_18_plus INTEGER NOT NULL,
+    has_transport INTEGER NOT NULL,
+    closest_area TEXT NOT NULL,
+    days_available TEXT NOT NULL,
+    time_windows TEXT NOT NULL,
+    hours_hoping TEXT NOT NULL,
+    owned_dogs INTEGER NOT NULL,
+    experience_note TEXT,
+    sizes_ok TEXT NOT NULL,
+    uncomfortable TEXT,
+    allergies TEXT,
+    why_interested TEXT NOT NULL,
+    tricky_situation TEXT NOT NULL,
+    ref1_name TEXT,
+    ref1_phone TEXT,
+    ref1_relation TEXT,
+    ref2_name TEXT,
+    ref2_phone TEXT,
+    ref2_relation TEXT,
+    refs_on_request INTEGER NOT NULL DEFAULT 0,
+    attestations TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'new',
+    scott_notes TEXT,
+    bgcheck_sent_at TEXT,
+    rejected_at TEXT,
+    delete_after TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_applicants_status ON applicants(status, created_at DESC);
+`);
+console.log('Created applicants table');
+
 console.log('Database initialized at', require('path').join(__dirname, 'data', 'barkstroll.db'));
 db.close();

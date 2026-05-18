@@ -322,8 +322,13 @@ app.post('/api/applicants/submit', applicantLimiter, async (req, res) => {
       );
       applicantId = existing.id;
     } else if (existing) {
-      // Real prior application exists at any non-lead status. Don't silently overwrite Scott's review work.
-      return res.status(409).json({ error: "We already have an application on file for that email. Reach out at scott@barkstroll.com if you'd like to update it." });
+      // Real prior application exists at any non-lead status. Don't silently overwrite Scott's review work,
+      // and don't hand the applicant back a contact path that invites repeat outreach. The client renders
+      // `already_applied: true` as a full-page "on file" panel instead of a red form error.
+      return res.status(409).json({
+        already_applied: true,
+        error: "Your application is already on file and active in our system."
+      });
     } else {
       const result = db.prepare(`
         INSERT INTO applicants (

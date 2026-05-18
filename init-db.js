@@ -145,6 +145,18 @@ db.exec(`
     dog_id     INTEGER NOT NULL REFERENCES dogs(id) ON DELETE CASCADE,
     PRIMARY KEY (request_id, dog_id)
   );
+
+  -- Per-walker decline log: one walker declining no longer kills the request
+  -- for everyone. The parent row stays 'pending' until someone accepts (or it
+  -- is cancelled by the customer / admin).
+  CREATE TABLE IF NOT EXISTS appointment_request_declines (
+    request_id         INTEGER NOT NULL REFERENCES appointment_requests(id) ON DELETE CASCADE,
+    walker_employee_id INTEGER NOT NULL REFERENCES employees(id),
+    declined_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (request_id, walker_employee_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_request_declines_walker
+    ON appointment_request_declines(walker_employee_id);
 `);
 
 // Create portal user accounts if they don't exist

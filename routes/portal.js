@@ -180,6 +180,9 @@ router.get('/walker/appointments', requireRole('walker'), (req, res) => {
 });
 
 // GET /api/portal/walker/requests — all pending requests
+// Filters out requests this walker has already declined (per-walker decline,
+// stored in appointment_request_declines). Other walkers still see the request
+// until someone accepts (or the request is cancelled).
 router.get('/walker/requests', requireRole('walker'), (req, res) => {
   const employeeId = req.session.user.employee_id;
   const rows = db.prepare(`
@@ -189,8 +192,12 @@ router.get('/walker/requests', requireRole('walker'), (req, res) => {
     JOIN services s ON s.id = ar.service_id
     JOIN customers c ON c.id = ar.customer_id
     WHERE ar.status = 'pending'
+      AND NOT EXISTS (
+        SELECT 1 FROM appointment_request_declines d
+        WHERE d.request_id = ar.id AND d.walker_employee_id = ?
+      )
     ORDER BY ar.preferred_date, ar.preferred_time
-  `).all();
+  `).all(employeeId);
   const filtered = [];
   for (const row of rows) {
     // Hide exclusive-walker customers from other walkers
@@ -268,13 +275,18 @@ router.post('/walker/accept/:id', requireRole('walker'), async (req, res) => {
   res.json({ ok: true, appointment_id: apptId, email_sent: emailSent });
 });
 
-// POST /api/portal/walker/decline/:id — decline for this walker
+// POST /api/portal/walker/decline/:id — decline for THIS walker only.
+// Inserts into appointment_request_declines so the request stays visible to
+// other walkers until someone accepts. The parent appointment_requests row is
+// no longer flipped to 'declined' on individual walker actions.
 router.post('/walker/decline/:id', requireRole('walker'), (req, res) => {
+  const employeeId = req.session.user.employee_id;
   const requestId = req.params.id;
   const request = db.prepare('SELECT * FROM appointment_requests WHERE id = ? AND status = ?').get(requestId, 'pending');
   if (!request) return res.status(404).json({ error: 'Request not found or already handled' });
-  // For now, just mark as declined (could be per-walker with a separate table, but keeping it simple)
-  db.prepare("UPDATE appointment_requests SET status = 'declined', updated_at = datetime('now') WHERE id = ?").run(requestId);
+  db.prepare(
+    'INSERT OR IGNORE INTO appointment_request_declines (request_id, walker_employee_id) VALUES (?, ?)'
+  ).run(requestId, employeeId);
   res.json({ ok: true });
 });
 

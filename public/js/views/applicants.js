@@ -6,6 +6,7 @@ const APPLICANT_STATUS_LABELS = {
   reviewed: 'Reviewed',
   finalist: 'Finalist',
   bgcheck_sent: 'Background check sent',
+  agreement_sent: 'Contract sent',
   hired: 'Hired',
   rejected: 'Rejected'
 };
@@ -16,6 +17,7 @@ const APPLICANT_STATUS_COLORS = {
   reviewed: '#5a8fc4',
   finalist: '#14613a',
   bgcheck_sent: '#a070c0',
+  agreement_sent: '#d97f2e',
   hired: '#2a7d3f',
   rejected: '#888'
 };
@@ -122,11 +124,12 @@ function renderApplicantCard(a) {
 }
 
 const PIPELINE = [
-  { key: 'new',           label: 'New' },
-  { key: 'reviewed',      label: 'Reviewed' },
-  { key: 'finalist',      label: 'Finalist' },
-  { key: 'bgcheck_sent',  label: 'Bg Check' },
-  { key: 'hired',         label: 'Hired' }
+  { key: 'new',            label: 'New' },
+  { key: 'reviewed',       label: 'Reviewed' },
+  { key: 'finalist',       label: 'Finalist' },
+  { key: 'bgcheck_sent',   label: 'Bg Check' },
+  { key: 'agreement_sent', label: 'Contract' },
+  { key: 'hired',          label: 'Hired' }
 ];
 
 function pipelineIndex(status) {
@@ -175,7 +178,7 @@ function renderActionPanel(a) {
   }
   if (s === 'new') {
     return {
-      title: 'Step 1 of 5 · New application',
+      title: 'Step 1 of 6 · New application',
       desc: "I've read the application and want to keep them in the pipeline for further consideration.",
       button: { label: 'Mark as reviewed', color: '#5a8fc4', action: 'set_status', value: 'reviewed' },
       reject: true
@@ -183,7 +186,7 @@ function renderActionPanel(a) {
   }
   if (s === 'reviewed') {
     return {
-      title: 'Step 2 of 5 · Reviewed',
+      title: 'Step 2 of 6 · Reviewed',
       desc: "I want to seriously consider hiring them. Moving them to Finalist unlocks the FCRA background-check step.",
       button: { label: 'Move to finalist', color: '#14613a', action: 'set_status', value: 'finalist' },
       reject: true
@@ -191,7 +194,7 @@ function renderActionPanel(a) {
   }
   if (s === 'finalist') {
     return {
-      title: 'Step 3 of 5 · Finalist',
+      title: 'Step 3 of 6 · Finalist',
       desc: "Send the FCRA pre-disclosure email to " + esc(a.email) + ". This is a federal requirement before pulling any background report. Stamps the send time and moves them to step 4.",
       button: { label: 'Send FCRA disclosure email', color: '#a070c0', action: 'send_bgcheck' },
       reject: true
@@ -199,19 +202,32 @@ function renderActionPanel(a) {
   }
   if (s === 'bgcheck_sent') {
     return {
-      title: 'Step 4 of 5 · Background check in progress',
+      title: 'Step 4 of 6 · Background check in progress',
       desc: "FCRA disclosure sent " + fmtRelDate(a.bgcheck_sent_at) + ". Once the background report comes back, pick the path that matches the result.",
+      extras: [
+        a.checkr_heads_up_sent_at
+          ? { label: 'Checkr heads-up sent ' + fmtRelDate(a.checkr_heads_up_sent_at), color: '#2a7d3f', action: null, disabled: true }
+          : { label: 'Send Checkr heads-up email', color: '#5a8fc4', action: 'send_checkr_headsup', hint: 'Click after placing the order on Checkr. Tells the applicant the invite is coming.' }
+      ],
       fork: [
-        { label: 'Report came back clean → Hire', color: '#2a7d3f', action: 'set_status', value: 'hired' },
+        { label: 'Report came back clean → Send contractor agreement', color: '#d97f2e', action: 'send_agreement' },
         { label: 'Report has issues → Start adverse action', color: '#b44a3f', action: 'open_adverse' }
       ],
       reject: true
     };
   }
+  if (s === 'agreement_sent') {
+    return {
+      title: 'Step 5 of 6 · Contractor agreement sent',
+      desc: "IC agreement PDF emailed to " + esc(a.email) + ". They sign by replying \"YES I AGREE\". Once that reply lands in your inbox, click below to finalize the hire.",
+      button: { label: 'Reply received · Mark agreement signed → Hire', color: '#2a7d3f', action: 'set_status', value: 'hired' },
+      reject: true
+    };
+  }
   if (s === 'hired') {
     return {
-      title: 'Step 5 of 5 · Hired ✓',
-      desc: "Pipeline complete. Onboarding paperwork lives in their employee record.",
+      title: 'Step 6 of 6 · Hired ✓',
+      desc: "Pipeline complete. Add them to the Walkers tab to make them assignable. Get a W-9 on file before the first paid walk.",
       button: null,
       reject: false
     };
@@ -361,6 +377,20 @@ async function openApplicantModal(id) {
         `<button id="forkAction_${i}" type="button" style="width:100%;padding:13px;background:${b.color};color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">${esc(b.label)}</button>`
       ).join('');
     }
+    let extrasHtml = '';
+    if (panel.extras && panel.extras.length) {
+      extrasHtml = '<div style="margin-bottom:12px">' + panel.extras.map((x, i) => {
+        const opacity = x.disabled ? '0.7' : '1';
+        const cursor = x.disabled ? 'default' : 'pointer';
+        const idAttr = x.disabled ? '' : `id="extraAction_${i}"`;
+        const disabledAttr = x.disabled ? 'disabled' : '';
+        const hint = x.hint ? `<div style="font-size:11px;color:#888;margin-top:4px;line-height:1.4">${esc(x.hint)}</div>` : '';
+        return `
+          <button ${idAttr} ${disabledAttr} type="button" style="width:100%;padding:10px;background:${x.color};color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:${cursor};opacity:${opacity}">${esc(x.label)}</button>
+          ${hint}
+        `;
+      }).join('') + '</div>';
+    }
 
     const rejectBtn = panel.reject
       ? `<button id="rejectBtn" type="button" style="padding:8px 14px;background:transparent;color:#b44a3f;border:1px solid #e0b8b3;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer">Reject applicant</button>`
@@ -376,6 +406,7 @@ async function openApplicantModal(id) {
       <div style="padding:14px;background:#fff;border:1px solid #e8e8e5;border-radius:8px;margin-bottom:18px">
         <div style="font-size:12px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">${esc(panel.title)}</div>
         <div style="font-size:13px;color:#444;line-height:1.55;margin-bottom:14px">${panel.desc}</div>
+        ${extrasHtml}
         ${actionHtml}
         <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
           ${rejectBtn}
@@ -437,11 +468,39 @@ async function openApplicantModal(id) {
       }
     }
 
+    async function doSendCheckrHeadsUp() {
+      if (!confirm('Send the Checkr heads-up email to ' + a.email + '?\n\nClick this AFTER you have placed the order on Checkr. The email tells the applicant to watch for the Checkr invite (and what they will need to complete it).')) return;
+      try {
+        await api('/applicants/' + id + '/send-checkr-headsup', { method: 'POST' });
+        toast('Checkr heads-up sent to ' + a.email, 'ok');
+        closeModal();
+        render_applicants(App.content);
+      } catch (e) {
+        toast('Send failed: ' + e.message, 'err');
+      }
+    }
+
+    async function doSendAgreement() {
+      if (!confirm('Send the contractor agreement PDF to ' + a.email + '?\n\nConfirm: Checkr came back clean with no disqualifying issues. The agreement asks them to reply "YES I AGREE" to sign electronically.')) return;
+      try {
+        await api('/applicants/' + id + '/send-agreement', { method: 'POST' });
+        toast('Contractor agreement sent to ' + a.email, 'ok');
+        closeModal();
+        render_applicants(App.content);
+      } catch (e) {
+        toast('Send failed: ' + e.message, 'err');
+      }
+    }
+
     const primaryBtn = document.getElementById('primaryAction');
     if (primaryBtn && panel.button) {
       primaryBtn.onclick = () => {
-        if (panel.button.action === 'set_status') return doSetStatus(panel.button.value, 'Moved to ' + (APPLICANT_STATUS_LABELS[panel.button.value] || panel.button.value));
+        if (panel.button.action === 'set_status') {
+          if (panel.button.value === 'hired' && !confirm('Confirm: ' + a.full_name + ' has replied "YES I AGREE" to the contractor agreement, and you are finalizing the hire.\n\nReminder: add them to the Walkers tab and get a W-9 before the first paid walk.')) return;
+          return doSetStatus(panel.button.value, 'Moved to ' + (APPLICANT_STATUS_LABELS[panel.button.value] || panel.button.value));
+        }
         if (panel.button.action === 'send_bgcheck') return doSendBgcheck();
+        if (panel.button.action === 'send_agreement') return doSendAgreement();
       };
     }
     if (panel.fork) {
@@ -453,10 +512,21 @@ async function openApplicantModal(id) {
             if (b.value === 'hired' && !confirm('Confirm: the background report came back with no disqualifying issues, and you are hiring ' + a.full_name + '.')) return;
             return doSetStatus(b.value, 'Updated');
           }
+          if (b.action === 'send_agreement') return doSendAgreement();
           if (b.action === 'open_adverse') {
             closeModal();
             setTimeout(() => openAdverseActionModal(a), 50);
           }
+        };
+      });
+    }
+    if (panel.extras) {
+      panel.extras.forEach((x, i) => {
+        if (!x.action) return;
+        const el = document.getElementById('extraAction_' + i);
+        if (!el) return;
+        el.onclick = () => {
+          if (x.action === 'send_checkr_headsup') return doSendCheckrHeadsUp();
         };
       });
     }

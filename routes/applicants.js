@@ -9,7 +9,7 @@ router.get('/applicants', (req, res) => {
     FROM applicants
     ORDER BY
       CASE status WHEN 'lead' THEN 0 WHEN 'new' THEN 1 WHEN 'reviewed' THEN 2 WHEN 'finalist' THEN 3
-                  WHEN 'bgcheck_sent' THEN 4 WHEN 'hired' THEN 5 WHEN 'rejected' THEN 6 END,
+                  WHEN 'bgcheck_sent' THEN 4 WHEN 'agreement_sent' THEN 5 WHEN 'hired' THEN 6 WHEN 'rejected' THEN 7 END,
       created_at DESC
   `).all();
   res.json({ applicants: rows });
@@ -61,7 +61,7 @@ router.get('/applicants/:id', (req, res) => {
 router.patch('/applicants/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!id) return res.status(400).json({ error: 'Bad id' });
-  const allowedStatuses = ['lead','new','reviewed','finalist','bgcheck_sent','hired','rejected'];
+  const allowedStatuses = ['lead','new','reviewed','finalist','bgcheck_sent','agreement_sent','hired','rejected'];
   const updates = [];
   const values = [];
   if (req.body.status !== undefined) {
@@ -96,6 +96,44 @@ router.post('/applicants/:id/send-bgcheck', async (req, res) => {
     res.json({ applicant: updated });
   } catch (err) {
     console.error('[bgcheck-send] failed:', err.message);
+    res.status(500).json({ error: 'Email send failed: ' + err.message });
+  }
+});
+
+router.post('/applicants/:id/send-checkr-headsup', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'Bad id' });
+  const row = db.prepare('SELECT * FROM applicants WHERE id = ?').get(id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  if (row.status !== 'bgcheck_sent') return res.status(409).json({ error: 'Heads-up only valid while status is bgcheck_sent (current: ' + row.status + ')' });
+  if (row.checkr_heads_up_sent_at) return res.status(409).json({ error: 'Heads-up already sent at ' + row.checkr_heads_up_sent_at });
+
+  try {
+    const { sendApplicantCheckrHeadsUp } = require('../lib/email');
+    await sendApplicantCheckrHeadsUp(row);
+    db.prepare("UPDATE applicants SET checkr_heads_up_sent_at = datetime('now') WHERE id = ?").run(id);
+    const updated = db.prepare('SELECT * FROM applicants WHERE id = ?').get(id);
+    res.json({ applicant: updated });
+  } catch (err) {
+    console.error('[checkr-headsup-send] failed:', err.message);
+    res.status(500).json({ error: 'Email send failed: ' + err.message });
+  }
+});
+
+router.post('/applicants/:id/send-agreement', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'Bad id' });
+  const row = db.prepare('SELECT * FROM applicants WHERE id = ?').get(id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+
+  try {
+    const { sendApplicantContractorAgreement } = require('../lib/email');
+    await sendApplicantContractorAgreement(row);
+    db.prepare("UPDATE applicants SET status = 'agreement_sent' WHERE id = ?").run(id);
+    const updated = db.prepare('SELECT * FROM applicants WHERE id = ?').get(id);
+    res.json({ applicant: updated });
+  } catch (err) {
+    console.error('[agreement-send] failed:', err.message);
     res.status(500).json({ error: 'Email send failed: ' + err.message });
   }
 });

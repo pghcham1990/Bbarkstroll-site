@@ -244,6 +244,7 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'new',
     scott_notes TEXT,
     bgcheck_sent_at TEXT,
+    checkr_heads_up_sent_at TEXT,
     rejected_at TEXT,
     delete_after TEXT
   );

@@ -10,6 +10,14 @@ const { encryptBuffer, decryptBuffer } = require('../lib/doc-crypto');
 const DOCS_DIR = process.env.SECURE_DOCS_DIR || '/opt/barkstroll/data/secure-docs';
 fs.mkdirSync(DOCS_DIR, { recursive: true, mode: 0o700 });
 
+function blobPath(storedFile) {
+  const p = path.join(DOCS_DIR, storedFile);
+  if (!path.resolve(p).startsWith(path.resolve(DOCS_DIR) + path.sep)) {
+    throw new Error('invalid stored path');
+  }
+  return p;
+}
+
 const ALLOWED = new Set(['application/pdf', 'image/jpeg', 'image/png']);
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -42,7 +50,7 @@ router.post('/employees/:id/documents', upload.single('file'), (req, res) => {
 
   const enc = encryptBuffer(req.file.buffer);
   const storedFile = crypto.randomUUID() + '.enc';
-  fs.writeFileSync(path.join(DOCS_DIR, storedFile), enc.ciphertext, { mode: 0o600 });
+  fs.writeFileSync(blobPath(storedFile), enc.ciphertext, { mode: 0o600 });
 
   const actor = actorOf(req);
   const result = db.prepare(
@@ -62,7 +70,7 @@ router.get('/employees/:id/documents/:docId/file', (req, res) => {
 
   let plaintext;
   try {
-    const blob = fs.readFileSync(path.join(DOCS_DIR, doc.stored_file));
+    const blob = fs.readFileSync(blobPath(doc.stored_file));
     plaintext = decryptBuffer(blob, doc.iv_hex, doc.tag_hex);
   } catch (e) {
     return res.status(500).json({ error: 'Could not read document' });
@@ -71,7 +79,7 @@ router.get('/employees/:id/documents/:docId/file', (req, res) => {
   const disposition = req.query.disposition === 'attachment' ? 'attachment' : 'inline';
   logAccess(doc.id, disposition === 'attachment' ? 'download' : 'view', actorOf(req));
 
-  const safeName = doc.original_name.replace(/"/g, '');
+  const safeName = doc.original_name.replace(/[\r\n"]/g, '');
   res.setHeader('Content-Type', doc.mime_type);
   res.setHeader('Content-Disposition', disposition + '; filename="' + safeName + '"');
   res.send(plaintext);
@@ -82,7 +90,7 @@ router.delete('/employees/:id/documents/:docId', (req, res) => {
   const doc = db.prepare('SELECT * FROM employee_documents WHERE id = ? AND employee_id = ?')
     .get(req.params.docId, req.params.id);
   if (!doc) return res.status(404).json({ error: 'Not found' });
-  try { fs.unlinkSync(path.join(DOCS_DIR, doc.stored_file)); } catch (e) { /* already gone */ }
+  try { fs.unlinkSync(blobPath(doc.stored_file)); } catch (e) { /* already gone */ }
   logAccess(doc.id, 'delete', actorOf(req));
   db.prepare('DELETE FROM employee_documents WHERE id = ?').run(doc.id);
   res.json({ ok: true });

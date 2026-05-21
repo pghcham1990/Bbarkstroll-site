@@ -67,6 +67,13 @@ function fmtTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
 }
+// Eastern wall-date bucket key ("YYYY-MM-DD"). Use instead of ISO substring/startsWith
+// for grouping appointments by day, otherwise visits between 8 PM and midnight ET
+// fall on the wrong day because their UTC date is the next calendar day.
+function easternDateKey(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
 function fmtPhone(p) {
   if (!p) return '';
   const d = p.replace(/\D/g, '');
@@ -168,7 +175,7 @@ function renderCalGrid() {
   }
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const hasAppts = _walkerAppts.some(a => a.start_time && a.start_time.startsWith(dateStr) && a.status !== 'cancelled');
+    const hasAppts = _walkerAppts.some(a => a.start_time && easternDateKey(a.start_time) === dateStr && a.status !== 'cancelled');
     const isToday = isCurrentMonth && d === today.getDate();
     const isSelected = d === _calDay;
     html += `<div class="cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}" data-day="${d}" onclick="selectDay(${d})">${d}${hasAppts ? '<div class="cal-dot"></div>' : ''}</div>`;
@@ -192,7 +199,7 @@ function selectDay(d) {
 
 function renderDayView() {
   const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(_calDay).padStart(2,'0')}`;
-  const dayAppts = _walkerAppts.filter(a => a.start_time && a.start_time.startsWith(dateStr) && a.status !== 'cancelled').sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const dayAppts = _walkerAppts.filter(a => a.start_time && easternDateKey(a.start_time) === dateStr && a.status !== 'cancelled').sort((a, b) => a.start_time.localeCompare(b.start_time));
   const container = document.getElementById('dayAppts');
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const label = months[_calMonth] + ' ' + _calDay + ', ' + _calYear;

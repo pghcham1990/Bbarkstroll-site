@@ -49,6 +49,13 @@ function fmtTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
 }
+// Eastern wall-date bucket key ("YYYY-MM-DD"). Use instead of ISO substring/startsWith
+// for grouping appointments by day, otherwise visits between 8 PM and midnight ET
+// fall on the wrong day because their UTC date is the next calendar day.
+function easternDateKey(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
 function esc(s) {
   if (!s) return '';
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -173,11 +180,11 @@ function renderDayView() {
   const label = months[_calMonth] + ' ' + _calDay + ', ' + _calYear;
 
   // My appointments on this day
-  const mine = _myAppts.filter(a => a.start_time && a.start_time.startsWith(dateStr) && a.status !== 'cancelled').sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const mine = _myAppts.filter(a => a.start_time && easternDateKey(a.start_time) === dateStr && a.status !== 'cancelled').sort((a, b) => a.start_time.localeCompare(b.start_time));
 
   // Busy blocks that are NOT my appointments
   const myStartTimes = new Set(mine.map(a => a.start_time));
-  const busy = _busyBlocks.filter(b => b.start_time && b.start_time.startsWith(dateStr) && !myStartTimes.has(b.start_time)).sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const busy = _busyBlocks.filter(b => b.start_time && easternDateKey(b.start_time) === dateStr && !myStartTimes.has(b.start_time)).sort((a, b) => a.start_time.localeCompare(b.start_time));
 
   if (!mine.length && !busy.length) {
     container.innerHTML = `<p style="font-size:.85rem;color:var(--text-soft);text-align:center;padding:1.5rem 0">No activity on ${label}</p>`;

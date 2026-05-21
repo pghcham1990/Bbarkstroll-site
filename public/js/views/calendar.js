@@ -1,6 +1,15 @@
 /* === Calendar View === */
 let _calYear, _calMonth, _calDay, _calAppts = [];
 
+// Convert an ISO timestamp to its Eastern wall-date key ("YYYY-MM-DD").
+// Storage is UTC, but the grid buckets days by Eastern, so visits between
+// 8 PM and midnight ET (which carry a next-day UTC date) used to land on
+// the wrong day.
+function easternDateKey(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
 async function render_calendar(el) {
   const now = new Date();
   _calYear = now.getFullYear();
@@ -58,7 +67,7 @@ async function renderCal() {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const hasAppts = _calAppts.some(a => a.start_time && a.start_time.startsWith(dateStr) && a.status !== 'cancelled');
+    const hasAppts = _calAppts.some(a => a.start_time && easternDateKey(a.start_time) === dateStr && a.status !== 'cancelled');
     const isToday = isCurrentMonth && d === today.getDate();
     const isSelected = d === _calDay;
     html += `<div class="cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}" data-day="${d}" onclick="selectDay(${d})">${d}${hasAppts ? '<div class="cal-dot"></div>' : ''}</div>`;
@@ -84,7 +93,7 @@ function selectDay(d) {
 
 function renderDayAppts() {
   const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(_calDay).padStart(2,'0')}`;
-  const dayAppts = _calAppts.filter(a => a.start_time && a.start_time.startsWith(dateStr) && a.status !== 'cancelled' && a.status !== 'deleted').sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const dayAppts = _calAppts.filter(a => a.start_time && easternDateKey(a.start_time) === dateStr && a.status !== 'cancelled' && a.status !== 'deleted').sort((a, b) => a.start_time.localeCompare(b.start_time));
   const container = document.getElementById('dayAppts');
 
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -111,14 +120,14 @@ function renderDayAppts() {
   // Coming Up
   const upcoming = _calAppts.filter(a => {
     if (!a.start_time || a.status === 'cancelled' || a.status === 'deleted') return false;
-    return a.start_time.substring(0, 10) > dateStr;
+    return easternDateKey(a.start_time) > dateStr;
   }).sort((a, b) => a.start_time.localeCompare(b.start_time)).slice(0, 8);
 
   if (upcoming.length) {
     html += `<p class="cal-upcoming-label">Coming Up</p>`;
     let lastDate = '';
     for (const a of upcoming) {
-      const apptDate = a.start_time.substring(0, 10);
+      const apptDate = easternDateKey(a.start_time);
       if (apptDate !== lastDate) {
         const [y, m, d] = apptDate.split('-').map(Number);
         const dt = new Date(y, m - 1, d);

@@ -60,10 +60,12 @@ function renderEarningsWidget(data) {
 
   let rows = walkers.map(w => {
     const label = w.isScott ? `${w.name} <span class="earnings-you">(you)</span>` : w.name;
+    const avgHrs = (w.avg_hours_per_week || 0);
+    const hrsLabel = avgHrs > 0 ? ` <span class="earnings-hours">· ~${avgHrs.toFixed(1)} hr/wk</span>` : '';
     return `
       <div class="earnings-row">
         <div class="earnings-name">${label}</div>
-        <div class="earnings-walks">${w.walks_completed} walk${w.walks_completed !== 1 ? 's' : ''}</div>
+        <div class="earnings-walks">${w.walks_completed} walk${w.walks_completed !== 1 ? 's' : ''}${hrsLabel}</div>
         <div class="earnings-amount">$${w.earned_completed.toFixed(0)}</div>
       </div>`;
   }).join('');
@@ -72,7 +74,7 @@ function renderEarningsWidget(data) {
   rows += `
     <div class="earnings-row earnings-house">
       <div class="earnings-name">🏠 Bark & Stroll</div>
-      <div class="earnings-walks">${data.total_walks_completed} walk${data.total_walks_completed !== 1 ? 's' : ''} × $${data.house_cut_per_walk}</div>
+      <div class="earnings-walks">${data.total_walks_completed} walk${data.total_walks_completed !== 1 ? 's' : ''}</div>
       <div class="earnings-amount">$${data.house_total_completed.toFixed(0)}</div>
     </div>`;
 
@@ -99,7 +101,7 @@ function renderEarningsWidget(data) {
               </div>`).join('')}
             <div class="earnings-row earnings-house earnings-projected">
               <div class="earnings-name">🏠 Bark & Stroll</div>
-              <div class="earnings-walks">${data.total_walks_all} walks × $${data.house_cut_per_walk}</div>
+              <div class="earnings-walks">${data.total_walks_all} walks</div>
               <div class="earnings-amount">$${data.house_total_projected.toFixed(0)}</div>
             </div>
           </div>

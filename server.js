@@ -29,6 +29,7 @@ const PORT = process.env.PORT || 8081;
 // Middleware
 app.use(express.json({ limit: '64kb' }));
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
+require('fs').mkdirSync(require('path').join(__dirname, 'data', 'secure-docs'), { recursive: true, mode: 0o700 });
 const SqliteStore = require('./lib/session-store');
 app.use(session({
   store: SqliteStore(),
@@ -406,6 +407,8 @@ app.use('/admin/api', adminOnly, require('./routes/email'));
 app.use('/admin/api', adminOnly, require('./routes/notes'));
 app.use('/admin/api', adminOnly, require('./routes/gallery'));
 app.use('/admin/api', adminOnly, require('./routes/applicants'));
+app.use('/admin/api', adminOnly, require('./routes/content'));
+app.use('/admin/api', adminOnly, require('./routes/employee-documents'));
 
 // SPA fallback — all /admin/* non-API routes serve the app shell
 app.get('/admin/*', requireAuth, requireRole('admin'), (_req, res) => {

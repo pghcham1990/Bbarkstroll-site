@@ -43,13 +43,36 @@ async function loadEmployees() {
       const fullName = (e.first_name || '') + ' ' + (e.last_name || '');
       const initials = ((e.first_name || '')[0] || '') + ((e.last_name || '')[0] || '');
       const color = getTeamColor(fullName);
+      const isCore = e.crew_type === 'core';
+      const crewTag = isCore
+        ? '<div class="crew-tag crew-core" title="Founding crew that built this. Informal/cash, not 1099.">⚒️ Original Crew</div>'
+        : '<div class="crew-tag crew-1099" title="Background-checked, signed contractor agreement. Issued a 1099 if paid $600+ in a year.">📄 1099 Contractor</div>';
+
+      // Contractors: show progress toward the $600 IRS 1099-NEC reporting threshold.
+      let irsBlock = '';
+      if (!isCore) {
+        const paid = e.ytd_paid || 0;
+        const pct = Math.min(100, Math.round((paid / 600) * 100));
+        const over = e.over_1099_threshold;
+        irsBlock = `
+          <div class="irs-block ${over ? 'irs-over' : ''}">
+            <div class="irs-line"><span>${e.ytd_visits || 0} visits · $${paid} YTD</span><span>$600</span></div>
+            <div class="irs-bar"><div class="irs-fill" style="width:${pct}%"></div></div>
+            <div class="irs-note">${over ? '🚩 Over $600 — issue a 1099-NEC for this year' : `$${600 - paid} until 1099 reporting`}</div>
+          </div>`;
+      }
+
       return `
         <div class="team-card${!e.active ? ' inactive' : ''}">
           <div class="team-avatar" style="background:${color.bg};color:${color.text};border-color:${color.border}">${esc(initials.toUpperCase())}</div>
           <div class="team-name">${esc(e.first_name)} ${esc(e.last_name)}</div>
           <div class="team-contact">${fmtPhone(e.phone) || e.email || 'No contact info'}</div>
+          ${crewTag}
+          ${e.has_w9 ? '<div class="crew-tag" style="background:#e7f3ec;color:#14613a" title="W-9 on file">📄 W-9 on file ✓</div>' : ''}
+          ${irsBlock}
           <div class="team-status ${e.active ? 'active' : 'inactive'}">${e.active ? 'Active' : 'Inactive'}</div>
           <div class="team-actions">
+            <button class="btn btn-outline btn-sm" onclick="openWalkerDocs(${e.id}, '${esc((e.first_name||'') + ' ' + (e.last_name||'')).replace(/'/g, "\\'")}')">📁 Documents</button>
             <button class="btn btn-outline btn-sm" onclick="openEmployeeForm(${e.id})">Edit</button>
             ${e.active ? `<button class="btn btn-danger btn-sm" onclick="deactivateEmployee(${e.id})">Deactivate</button>` : ''}
           </div>
@@ -72,6 +95,14 @@ function openEmployeeForm(id) {
         </div>
         <div class="form-group"><label>Email</label><input name="email" type="email" value="${esc(e.email || '')}"></div>
         <div class="form-group"><label>Phone</label><input name="phone" type="tel" value="${esc(e.phone || '')}"></div>
+        <div class="form-group">
+          <label>Classification</label>
+          <select name="crew_type">
+            <option value="contractor" ${e.crew_type !== 'core' ? 'selected' : ''}>1099 Contractor (background check + signed agreement)</option>
+            <option value="core" ${e.crew_type === 'core' ? 'selected' : ''}>Original Crew (founding, informal)</option>
+          </select>
+          <small style="color:var(--text-soft);font-size:.68rem;display:block;margin-top:.25rem">New hires are 1099 contractors. 1099-NEC issued if paid $600+ in a year.</small>
+        </div>
         ${isEdit ? `<div class="form-group"><label>Status</label><select name="active"><option value="1" ${e.active ? 'selected' : ''}>Active</option><option value="0" ${!e.active ? 'selected' : ''}>Inactive</option></select></div>` : ''}
         <div class="form-actions">
           <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
@@ -99,6 +130,70 @@ async function deactivateEmployee(id) {
   try {
     await api('/employees/' + id, { method: 'DELETE' });
     toast('Team member deactivated');
+    loadEmployees();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function openWalkerDocs(id, name) {
+  openModal(`
+    <div class="modal-header"><h2>Documents — ${esc(name)}</h2><button class="modal-close">&times;</button></div>
+    <div id="walkerDocsList">Loading...</div>
+    <form id="walkerDocForm" style="margin-top:1rem;border-top:1px solid var(--border,#e2ddd5);padding-top:1rem">
+      <div class="form-group">
+        <label>Upload W-9 (PDF, JPG, or PNG)</label>
+        <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required>
+        <small style="display:block;color:var(--text-soft);font-size:.68rem;margin-top:.25rem">Stored encrypted. Only visible when you are logged in.</small>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Upload W-9</button>
+      </div>
+    </form>
+  `);
+  refreshWalkerDocs(id);
+  document.getElementById('walkerDocForm').onsubmit = (ev) => uploadWalkerDoc(ev, id);
+}
+
+async function refreshWalkerDocs(id) {
+  const el = document.getElementById('walkerDocsList');
+  try {
+    const docs = await api('/employees/' + id + '/documents');
+    if (!docs.length) { el.innerHTML = '<p style="color:var(--text-soft)">No documents yet.</p>'; return; }
+    el.innerHTML = docs.map(d => `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem 0;border-bottom:1px solid var(--border,#eee)">
+        <div>
+          <span class="crew-tag" style="background:#e7f3ec;color:#14613a">📄 W-9</span>
+          <span style="margin-left:.4rem">${esc(d.original_name)}</span>
+          <small style="display:block;color:var(--text-soft)">${esc(d.uploaded_at)}</small>
+        </div>
+        <div style="display:flex;gap:.35rem">
+          <a class="btn btn-outline btn-sm" href="/admin/api/employees/${id}/documents/${d.id}/file?disposition=inline" target="_blank" rel="noopener">View</a>
+          <a class="btn btn-outline btn-sm" href="/admin/api/employees/${id}/documents/${d.id}/file?disposition=attachment">Download</a>
+          <button class="btn btn-danger btn-sm" onclick="deleteWalkerDoc(${id}, ${d.id})">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) { el.innerHTML = '<p style="color:#b04848">' + esc(e.message) + '</p>'; }
+}
+
+async function uploadWalkerDoc(ev, id) {
+  ev.preventDefault();
+  const fd = new FormData(ev.target);
+  try {
+    const res = await fetch('/admin/api/employees/' + id + '/documents', { method: 'POST', body: fd });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Upload failed'); }
+    ev.target.reset();
+    toast('W-9 uploaded');
+    refreshWalkerDocs(id);
+    loadEmployees();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function deleteWalkerDoc(id, docId) {
+  if (!await confirmDialog('Delete this document?')) return;
+  try {
+    await api('/employees/' + id + '/documents/' + docId, { method: 'DELETE' });
+    toast('Document deleted');
+    refreshWalkerDocs(id);
     loadEmployees();
   } catch (e) { toast(e.message, 'err'); }
 }

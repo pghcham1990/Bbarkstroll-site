@@ -16,12 +16,16 @@ router.get('/customers', (req, res) => {
         c.*,
         COUNT(DISTINCT d.id) AS dog_count,
         COUNT(DISTINCT n.id) AS note_count,
+        COUNT(DISTINCT CASE WHEN a.status = 'completed' AND COALESCE(sv.name,'') <> 'Meet & Greet' THEN a.id END) AS completed_count,
+        COUNT(DISTINCT CASE WHEN a.status IN ('completed','scheduled') AND COALESCE(sv.name,'') <> 'Meet & Greet' THEN a.id END) AS booked_count,
+        COALESCE(c.rate, 0) * COUNT(DISTINCT CASE WHEN a.status IN ('completed','scheduled') AND COALESCE(sv.name,'') <> 'Meet & Greet' THEN a.id END) AS lifetime_revenue,
         MAX(CASE WHEN a.status != 'cancelled' AND a.start_time <= datetime('now') THEN a.start_time END) AS last_service_at,
         CASE WHEN c.notes LIKE '[OUT OF AREA]%' THEN 1 ELSE 0 END AS out_of_area
       FROM customers c
       LEFT JOIN dogs d ON d.customer_id = c.id
       LEFT JOIN customer_notes n ON n.customer_id = c.id
       LEFT JOIN appointments a ON a.customer_id = c.id
+      LEFT JOIN services sv ON sv.id = a.service_id
     `;
     let rows;
     if (q) {
@@ -49,6 +53,35 @@ router.get('/customers/:id', (req, res) => {
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
     if (!customer) return res.status(404).json({ error: 'Not found' });
     customer.dogs = db.prepare('SELECT * FROM dogs WHERE customer_id = ? ORDER BY name').all(req.params.id);
+
+    // Spend pace: average visits per active week (Eastern), times the client's rate.
+    // Active week = a distinct Mon-anchored week with at least one non-cancelled visit.
+    const rate = customer.rate || 0;
+    // Meet & Greets are unpaid intro visits — never count toward value/loyalty metrics.
+    const visits = db.prepare(
+      "SELECT a.start_time FROM appointments a LEFT JOIN services s ON s.id = a.service_id WHERE a.customer_id = ? AND a.status IN ('completed','scheduled') AND COALESCE(s.name,'') <> 'Meet & Greet'"
+    ).all(req.params.id);
+    const completed = db.prepare(
+      "SELECT COUNT(*) c FROM appointments a LEFT JOIN services s ON s.id = a.service_id WHERE a.customer_id = ? AND a.status = 'completed' AND COALESCE(s.name,'') <> 'Meet & Greet'"
+    ).get(req.params.id).c;
+    const weekSet = new Set();
+    for (const v of visits) {
+      const et = new Date(new Date(v.start_time).toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const dow = (et.getDay() + 6) % 7;
+      et.setDate(et.getDate() - dow);
+      weekSet.add(`${et.getFullYear()}-${et.getMonth() + 1}-${et.getDate()}`);
+    }
+    const activeWeeks = Math.max(1, weekSet.size);
+    const visitsPerWeek = visits.length / activeWeeks;
+    customer.completed_count = completed;
+    customer.booked_count = visits.length;
+    customer.lifetime_revenue = rate * visits.length;
+    customer.pace = {
+      visits_per_week: visitsPerWeek,
+      per_week: visitsPerWeek * rate,
+      per_month: visitsPerWeek * rate * 4.333,
+      per_year: visitsPerWeek * rate * 52,
+    };
     res.json(customer);
   } catch (err) {
     res.status(500).json({ error: err.message });

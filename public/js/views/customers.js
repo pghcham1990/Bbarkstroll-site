@@ -16,6 +16,20 @@ function getAvatarColor(name) {
   return _avatarColors[Math.abs(hash) % _avatarColors.length];
 }
 
+// VIP tiers by lifetime booked revenue (rate x non-cancelled visits). Highest first.
+const VIP_TIERS = [
+  { name: 'Diamond',  emoji: '💎', min: 1500, cls: 'vip-diamond' },
+  { name: 'Platinum', emoji: '🏆', min: 700,  cls: 'vip-platinum' },
+  { name: 'Gold',     emoji: '🥇', min: 400,  cls: 'vip-gold' },
+  { name: 'Silver',   emoji: '🥈', min: 150,  cls: 'vip-silver' },
+  { name: 'Bronze',   emoji: '🥉', min: 1,    cls: 'vip-bronze' },
+];
+function vipTier(revenue) {
+  return VIP_TIERS.find(t => (revenue || 0) >= t.min) || null;
+}
+// Gift basket is earned at 25+ completed visits (loyalty by visits, not dollars).
+const GIFT_VISIT_THRESHOLD = 25;
+
 async function render_customers(el) {
   el.innerHTML = `
     <p class="section-label">Manage</p>
@@ -48,8 +62,11 @@ async function loadCustomers() {
       container.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No clients found</div></div>';
       return;
     }
-    const active = customers.filter(c => c.status !== 'prospect');
-    const prospects = customers.filter(c => c.status === 'prospect');
+    // Internal placeholder rows (e.g. walker-interview scheduling) never belong in the client list.
+    const visible = customers.filter(c => c.status !== 'internal');
+    const active = visible.filter(c => c.status !== 'prospect')
+      .sort((a, b) => (b.lifetime_revenue || 0) - (a.lifetime_revenue || 0));
+    const prospects = visible.filter(c => c.status === 'prospect');
 
     function renderCustomerItem(c) {
       const isProspect = c.status === 'prospect';
@@ -87,6 +104,18 @@ async function loadCustomers() {
           : '<div class="list-meta"><span class="list-sub-mini" style="opacity:.6">No services yet</span></div>';
       }
 
+      // VIP tier badge + gift-basket flag (active clients only).
+      let vipBadges = '';
+      if (!isProspect) {
+        const tier = vipTier(c.lifetime_revenue);
+        const giftDue = (c.completed_count || 0) >= GIFT_VISIT_THRESHOLD;
+        const parts = [];
+        if (tier) parts.push('<span class="vip-badge ' + tier.cls + '">' + tier.emoji + ' ' + tier.name + '</span>');
+        if (c.lifetime_revenue) parts.push('<span class="vip-spend">$' + Number(c.lifetime_revenue).toFixed(0) + ' lifetime</span>');
+        if (giftDue) parts.push('<span class="vip-gift" title="' + (c.completed_count) + ' completed visits — gift basket earned">🎁 Gift basket due</span>');
+        if (parts.length) vipBadges = '<div class="list-meta vip-row">' + parts.join('') + '</div>';
+      }
+
       return `
         <div class="customer-wrapper" id="wrapper-${c.id}">
           <div class="list-item" onclick="toggleCustomer(${c.id})">
@@ -100,6 +129,7 @@ async function loadCustomers() {
               </div>
               ${prospectStatus}
               ${clientStatus}
+              ${vipBadges}
             </div>
             <button class="list-edit-btn" onclick="event.stopPropagation();openCustomerForm(${c.id})" title="Edit">✏️</button>
           </div>
@@ -117,6 +147,35 @@ async function loadCustomers() {
     container.innerHTML = html;
     if (_expandedCustomer) toggleCustomer(_expandedCustomer, true);
   } catch (e) { toast(e.message, 'err'); }
+}
+
+function renderSpendBreakdown(c) {
+  const tier = vipTier(c.lifetime_revenue);
+  const p = c.pace || {};
+  if (!c.booked_count) return '';
+  const giftDue = (c.completed_count || 0) >= GIFT_VISIT_THRESHOLD;
+  const toGift = Math.max(0, GIFT_VISIT_THRESHOLD - (c.completed_count || 0));
+  return `
+    <div class="detail-section vip-panel">
+      <div class="detail-section-header">
+        <span class="detail-section-title">Value &amp; Loyalty</span>
+        ${tier ? '<span class="vip-badge ' + tier.cls + '">' + tier.emoji + ' ' + tier.name + '</span>' : ''}
+      </div>
+      <div class="spend-grid">
+        <div class="spend-cell"><div class="spend-num">$${(p.per_week || 0).toFixed(0)}</div><div class="spend-lbl">per week</div></div>
+        <div class="spend-cell"><div class="spend-num">$${(p.per_month || 0).toFixed(0)}</div><div class="spend-lbl">per month</div></div>
+        <div class="spend-cell"><div class="spend-num">$${(p.per_year || 0).toFixed(0)}</div><div class="spend-lbl">per year</div></div>
+      </div>
+      <div class="spend-sub">
+        $${Number(c.lifetime_revenue || 0).toFixed(0)} lifetime · ${c.completed_count || 0} completed · ${(p.visits_per_week || 0).toFixed(1)} visits/wk
+      </div>
+      <div class="gift-line ${giftDue ? 'gift-due' : ''}">
+        ${giftDue
+          ? '🎁 <strong>Gift basket earned</strong> (' + c.completed_count + ' visits). Time to drop one off.'
+          : '🎁 ' + toGift + ' more completed visit' + (toGift === 1 ? '' : 's') + ' until a gift basket'}
+      </div>
+    </div>
+  `;
 }
 
 async function toggleCustomer(id, forceOpen) {
@@ -144,6 +203,7 @@ async function toggleCustomer(id, forceOpen) {
           ${c.address ? '<div class="detail-row full-width"><span class="detail-label">Address</span><span class="detail-value">' + esc(c.address) + '</span></div>' : ''}
           ${c.rate != null ? '<div class="detail-row"><span class="detail-label">Rate</span><span class="detail-value" style="color:var(--gold);font-weight:700">$' + Number(c.rate).toFixed(2) + '</span></div>' : ''}
         </div>
+        ${renderSpendBreakdown(c)}
         <div class="detail-section">
           <div class="detail-section-header">
             <span class="detail-section-title">Notes</span>

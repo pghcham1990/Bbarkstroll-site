@@ -30,6 +30,7 @@ const PORT = process.env.PORT || 8081;
 app.use(express.json({ limit: '64kb' }));
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 require('fs').mkdirSync(require('path').join(__dirname, 'data', 'secure-docs'), { recursive: true, mode: 0o700 });
+require('./migrate-employee-documents').migrate(require('./lib/db')); // idempotent; ensures W-9 doc tables exist on every boot
 const SqliteStore = require('./lib/session-store');
 app.use(session({
   store: SqliteStore(),

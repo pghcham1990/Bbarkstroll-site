@@ -4,3 +4,6 @@ node_modules/
 .DS_Store
 .superpowers/
 data/
+private-archive/
+*.bundle
+barkstroll-prehistory-scrub-*.bundle

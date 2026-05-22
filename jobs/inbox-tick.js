@@ -29,7 +29,7 @@ const ARCHIVE_CLASSIFICATIONS = new Set(['bounce_hard', 'bounce_soft']);
   const stats = {
     fetched: 0, logged: 0,
     bounce_hard: 0, bounce_soft: 0,
-    auto_reply: 0, human_reply: 0, other: 0,
+    auto_reply: 0, human_reply: 0, inbound: 0, other: 0,
     customer_notes_added: 0,
   };
 
@@ -46,7 +46,14 @@ const ARCHIVE_CLASSIFICATIONS = new Set(['bounce_hard', 'bounce_soft']);
       console.log(`[barkstroll-inbox-tick] first run: seeded last_uid=${seedUid} (max=${maxUid})`);
     }
 
-    const result = await scan({ user: ACCOUNT, pass: PASS, sinceUid: state.last_uid, maxMessages: 500 });
+    const sentMessageIds = new Set(); // B&S has no cold-outreach sends table
+    const knownRecipients = new Set(
+      db.prepare("SELECT lower(email) e FROM customers WHERE email IS NOT NULL AND email != ''").all().map((r) => r.e)
+    );
+    const result = await scan({
+      user: ACCOUNT, pass: PASS, sinceUid: state.last_uid, maxMessages: 500,
+      ctx: { sentMessageIds, knownRecipients },
+    });
     client = result.client;
     stats.fetched = result.events.length;
 
@@ -113,7 +120,7 @@ const ARCHIVE_CLASSIFICATIONS = new Set(['bounce_hard', 'bounce_soft']);
       `[barkstroll-inbox-tick] fetched=${stats.fetched} logged=${stats.logged} ` +
       `bounce_hard=${stats.bounce_hard || 0} bounce_soft=${stats.bounce_soft || 0} ` +
       `auto_reply=${stats.auto_reply || 0} human_reply=${stats.human_reply || 0} ` +
-      `other=${stats.other || 0} customer_notes_added=${stats.customer_notes_added} ` +
+      `inbound=${stats.inbound || 0} other=${stats.other || 0} customer_notes_added=${stats.customer_notes_added} ` +
       `archived=${archived} last_uid=${result.highestUid}`
     );
   } catch (e) {

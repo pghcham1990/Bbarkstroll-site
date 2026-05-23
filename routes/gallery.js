@@ -28,6 +28,13 @@ db.prepare(`
   )
 `).run();
 
+// Optional link from a gallery photo to the client it belongs to.
+try { db.prepare('ALTER TABLE gallery_photos ADD COLUMN customer_id INTEGER').run(); } catch (e) { /* already exists */ }
+
+// Explicit display order. Lower = earlier in the gallery. New uploads get the
+// next value (max+1) so they append to the END, preserving the curated order.
+try { db.prepare('ALTER TABLE gallery_photos ADD COLUMN sort_order INTEGER').run(); } catch (e) { /* already exists */ }
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 },
@@ -79,7 +86,6 @@ async function processAndSave(buffer) {
   const fullH = resizedFull.info.height;
 
   await sharp(resizedFull.data)
-    .composite([{ input: watermarkSvg(fullW, fullH) }])
     .webp({ quality: WEBP_QUALITY })
     .toFile(path.join(PUBLIC_IMG_DIR, fullName));
 
@@ -91,7 +97,6 @@ async function processAndSave(buffer) {
   const thumbH = resizedThumb.info.height;
 
   await sharp(resizedThumb.data)
-    .composite([{ input: watermarkSvg(thumbW, thumbH) }])
     .webp({ quality: WEBP_QUALITY })
     .toFile(path.join(PUBLIC_IMG_DIR, thumbName));
 
@@ -102,7 +107,7 @@ function regenerateManifest() {
   const rows = db.prepare(
     `SELECT id, filename, thumb_filename, caption, dog_name, width, height, created_at
      FROM gallery_photos WHERE is_published = 1
-     ORDER BY created_at DESC, id DESC`
+     ORDER BY COALESCE(sort_order, 999999) ASC, id ASC`
   ).all();
 
   const photos = rows.map(r => ({
@@ -128,7 +133,7 @@ router.get('/gallery', (_req, res) => {
     const rows = db.prepare(
       `SELECT id, filename, thumb_filename, caption, dog_name, consent, is_published,
               width, height, created_at
-       FROM gallery_photos ORDER BY created_at DESC, id DESC`
+       FROM gallery_photos ORDER BY COALESCE(sort_order, 999999) ASC, id ASC`
     ).all();
     res.json(rows.map(r => ({
       ...r,
@@ -149,17 +154,32 @@ router.post('/gallery', upload.single('photo'), async (req, res) => {
 
     const processed = await processAndSave(req.file.buffer);
 
+    // Optional client link: when a real customer is chosen, store it on the photo
+    // and make this photo that client's avatar (newest linked photo wins).
+    const customerId = parseInt(req.body.customer_id, 10);
+    const customer = customerId
+      ? db.prepare('SELECT id FROM customers WHERE id = ?').get(customerId)
+      : null;
+
+    const nextOrder = db.prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM gallery_photos').get().n;
     const result = db.prepare(
-      `INSERT INTO gallery_photos (filename, thumb_filename, caption, dog_name, consent, is_published, width, height)
-       VALUES (?, ?, ?, ?, 1, 1, ?, ?)`
+      `INSERT INTO gallery_photos (filename, thumb_filename, caption, dog_name, consent, is_published, width, height, customer_id, sort_order)
+       VALUES (?, ?, ?, ?, 1, 1, ?, ?, ?, ?)`
     ).run(
       processed.fullName,
       processed.thumbName,
       (req.body.caption || '').trim() || null,
       (req.body.dog_name || '').trim() || null,
       processed.width,
-      processed.height
+      processed.height,
+      customer ? customer.id : null,
+      nextOrder
     );
+
+    if (customer) {
+      db.prepare('UPDATE customers SET avatar_photo_id = ? WHERE id = ?')
+        .run(result.lastInsertRowid, customer.id);
+    }
 
     regenerateManifest();
     res.json({ ok: true, id: result.lastInsertRowid });
@@ -199,6 +219,9 @@ router.delete('/gallery/:id', (req, res) => {
     if (!id) return res.status(400).json({ error: 'Invalid id' });
     const row = db.prepare('SELECT filename, thumb_filename FROM gallery_photos WHERE id = ?').get(id);
     if (!row) return res.status(404).json({ error: 'Not found' });
+
+    // If this photo was any client's avatar, revert them to their initial.
+    db.prepare('UPDATE customers SET avatar_photo_id = NULL WHERE avatar_photo_id = ?').run(id);
 
     db.prepare('DELETE FROM gallery_photos WHERE id = ?').run(id);
 

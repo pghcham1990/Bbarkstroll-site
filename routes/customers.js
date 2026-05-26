@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../lib/db');
 
+// Which gallery photo is this client's avatar (null = colored initial). Set on gallery upload.
+try { db.prepare('ALTER TABLE customers ADD COLUMN avatar_photo_id INTEGER').run(); } catch (e) { /* already exists */ }
+
 // List customers (with optional search)
 // Extra computed fields per row:
 //   dog_count        — count of dogs on file
@@ -20,7 +23,8 @@ router.get('/customers', (req, res) => {
         COUNT(DISTINCT CASE WHEN a.status IN ('completed','scheduled') AND COALESCE(sv.name,'') <> 'Meet & Greet' THEN a.id END) AS booked_count,
         COALESCE(c.rate, 0) * COUNT(DISTINCT CASE WHEN a.status IN ('completed','scheduled') AND COALESCE(sv.name,'') <> 'Meet & Greet' THEN a.id END) AS lifetime_revenue,
         MAX(CASE WHEN a.status != 'cancelled' AND a.start_time <= datetime('now') THEN a.start_time END) AS last_service_at,
-        CASE WHEN c.notes LIKE '[OUT OF AREA]%' THEN 1 ELSE 0 END AS out_of_area
+        CASE WHEN c.notes LIKE '[OUT OF AREA]%' THEN 1 ELSE 0 END AS out_of_area,
+        (SELECT '/gallery/img/' || thumb_filename FROM gallery_photos WHERE id = c.avatar_photo_id) AS avatar_url
       FROM customers c
       LEFT JOIN dogs d ON d.customer_id = c.id
       LEFT JOIN customer_notes n ON n.customer_id = c.id
@@ -50,7 +54,11 @@ router.get('/customers', (req, res) => {
 // Get single customer + dogs
 router.get('/customers/:id', (req, res) => {
   try {
-    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
+    const customer = db.prepare(`
+      SELECT c.*,
+        (SELECT '/gallery/img/' || thumb_filename FROM gallery_photos WHERE id = c.avatar_photo_id) AS avatar_url
+      FROM customers c WHERE c.id = ?
+    `).get(req.params.id);
     if (!customer) return res.status(404).json({ error: 'Not found' });
     customer.dogs = db.prepare('SELECT * FROM dogs WHERE customer_id = ? ORDER BY name').all(req.params.id);
 
@@ -143,11 +151,11 @@ router.get('/customers/:customerId/dogs', (req, res) => {
 // Create dog
 router.post('/customers/:customerId/dogs', (req, res) => {
   try {
-    const { name, breed, notes } = req.body;
+    const { name, breed, notes, walker_instructions } = req.body;
     if (!name) return res.status(400).json({ error: 'Dog name required' });
     const result = db.prepare(
-      'INSERT INTO dogs (customer_id, name, breed, notes) VALUES (?, ?, ?, ?)'
-    ).run(req.params.customerId, name, breed || null, notes || null);
+      'INSERT INTO dogs (customer_id, name, breed, notes, walker_instructions) VALUES (?, ?, ?, ?, ?)'
+    ).run(req.params.customerId, name, breed || null, notes || null, walker_instructions || null);
     res.json({ ok: true, id: result.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -157,9 +165,9 @@ router.post('/customers/:customerId/dogs', (req, res) => {
 // Update dog
 router.put('/dogs/:id', (req, res) => {
   try {
-    const { name, breed, notes } = req.body;
+    const { name, breed, notes, walker_instructions } = req.body;
     if (!name) return res.status(400).json({ error: 'Dog name required' });
-    db.prepare('UPDATE dogs SET name=?, breed=?, notes=? WHERE id=?').run(name, breed || null, notes || null, req.params.id);
+    db.prepare('UPDATE dogs SET name=?, breed=?, notes=?, walker_instructions=? WHERE id=?').run(name, breed || null, notes || null, walker_instructions || null, req.params.id);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -32,6 +32,7 @@ db.exec(`
     name        TEXT    NOT NULL,
     breed       TEXT,
     notes       TEXT,
+    walker_instructions TEXT,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 

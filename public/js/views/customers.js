@@ -74,6 +74,17 @@ async function loadCustomers() {
       const initial = c.first_name ? esc(c.first_name.charAt(0).toUpperCase()) : '?';
       const color = getAvatarColor(c.first_name + c.last_name);
 
+      // Avatar: a linked gallery photo (their dog) replaces the colored initial.
+      const hasPhoto = !isProspect && c.avatar_url;
+      const iconStyle = hasPhoto
+        ? 'overflow:hidden;border:1.5px solid ' + color.border
+        : (isProspect
+            ? 'border:1.5px solid transparent'
+            : 'background:' + color.bg + ';color:' + color.text + ';border:1.5px solid ' + color.border);
+      const iconInner = hasPhoto
+        ? '<img src="' + esc(c.avatar_url) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">'
+        : (isProspect ? '○' : initial);
+
       // Prospect status line: inquiry date + reply status + service-zone tag.
       // The form-submission endpoint creates the prospect row, so created_at == inquiry time.
       // note_count > 0 means Scott (or another admin) has logged a timeline follow-up.
@@ -119,7 +130,7 @@ async function loadCustomers() {
       return `
         <div class="customer-wrapper" id="wrapper-${c.id}">
           <div class="list-item" onclick="toggleCustomer(${c.id})">
-            <div class="list-icon${isProspect ? ' prospect' : ''}" style="background:${isProspect ? '' : color.bg};color:${isProspect ? '' : color.text};border:1.5px solid ${isProspect ? 'transparent' : color.border}">${isProspect ? '○' : initial}</div>
+            <div class="list-icon${isProspect ? ' prospect' : ''}" style="${iconStyle}">${iconInner}</div>
             <div class="list-body">
               <div class="list-title">${esc(c.last_name)}, ${esc(c.first_name)}</div>
               <div class="list-sub">${fmtPhone(c.phone) || c.email || 'No contact info'}</div>
@@ -230,8 +241,10 @@ async function toggleCustomer(id, forceOpen) {
               <div>
                 <div class="dog-info"><span class="dog-name">🐕 ${esc(d.name)}</span>${d.breed ? '<span class="dog-breed">' + esc(d.breed) + '</span>' : ''}</div>
                 ${d.notes ? '<div class="dog-notes">' + esc(d.notes) + '</div>' : ''}
+                ${d.walker_instructions ? '<div class="dog-notes" style="color:#2e6b34;margin-top:4px">📋 Walker Instructions on file</div>' : ''}
               </div>
               <div class="dog-actions">
+                ${d.walker_instructions ? `<button class="btn btn-outline btn-sm" onclick="viewWalkerInstructions(${c.id},${d.id})" title="View the full care sheet (with a copy button)">📋 View</button>` : ''}
                 <button class="btn btn-outline btn-sm" onclick="openDogForm(${c.id},${d.id})">Edit</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteDog(${d.id})">Del</button>
               </div>
@@ -309,6 +322,12 @@ function openCustomerForm(id) {
           <option value="prospect"${c.status==='prospect'?' selected':''}>Prospect</option>
           <option value="inactive"${c.status==='inactive'?' selected':''}>Inactive</option>
         </select></div>
+        ${isEdit ? '' : `
+        <div class="form-row">
+          <div class="form-group"><label>Dog Name</label><input name="dog_name" placeholder="optional"></div>
+          <div class="form-group"><label>Breed</label><input name="dog_breed" placeholder="optional"></div>
+        </div>
+        <div style="font-size:.7rem;color:var(--g-text-sec);margin:-.4rem 0 .6rem">Add one dog now; more can be added from the client card.</div>`}
         <div class="form-actions">
           <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
           <button type="submit" class="btn btn-primary">${isEdit ? 'Save' : 'Add Client'}</button>
@@ -319,9 +338,19 @@ function openCustomerForm(id) {
       e.preventDefault();
       const fd = new FormData(e.target);
       const body = Object.fromEntries(fd);
+      const dogName = (body.dog_name || '').trim();
+      const dogBreed = (body.dog_breed || '').trim();
+      delete body.dog_name;
+      delete body.dog_breed;
       try {
-        if (isEdit) await api('/customers/' + id, { method: 'PUT', body });
-        else await api('/customers', { method: 'POST', body });
+        if (isEdit) {
+          await api('/customers/' + id, { method: 'PUT', body });
+        } else {
+          const res = await api('/customers', { method: 'POST', body });
+          if (dogName && res && res.id) {
+            await api('/customers/' + res.id + '/dogs', { method: 'POST', body: { name: dogName, breed: dogBreed || null } });
+          }
+        }
         closeModal();
         toast(isEdit ? 'Client updated' : 'Client added');
         loadCustomers();
@@ -340,6 +369,7 @@ function openDogForm(customerId, dogId) {
         <div class="form-group"><label>Name *</label><input name="name" value="${esc(d.name || '')}" required></div>
         <div class="form-group"><label>Breed</label><input name="breed" value="${esc(d.breed || '')}"></div>
         <div class="form-group"><label>Notes</label><textarea name="notes">${esc(d.notes || '')}</textarea></div>
+        <div class="form-group"><label>Walker Instructions <span style="font-weight:400;color:#888;font-size:.85em">(entry &amp; lockbox, feeding, yard, visit length, reporting — the care sheet you hand any walker for this dog)</span></label><textarea name="walker_instructions" rows="11" placeholder="ENTRY: lockbox code / key...&#10;FEEDING: ...&#10;OUTSIDE TIME: ...&#10;The visit is 25 to 30 minutes...&#10;When you're done, text me a report.">${esc(d.walker_instructions || '')}</textarea></div>
         <div class="form-actions">
           <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
           <button type="submit" class="btn btn-primary">${isEdit ? 'Save' : 'Add Dog'}</button>
@@ -359,6 +389,26 @@ function openDogForm(customerId, dogId) {
       } catch (err) { toast(err.message, 'err'); }
     };
   });
+}
+
+async function viewWalkerInstructions(customerId, dogId) {
+  try {
+    const c = await api('/customers/' + customerId);
+    const d = (c.dogs || []).find(x => x.id === dogId);
+    const text = d && d.walker_instructions ? d.walker_instructions : '';
+    if (!text) { toast('No walker instructions set for this dog', 'err'); return; }
+    openModal(
+      '<div class="modal-header"><h2>Walker Instructions &mdash; ' + esc(d.name) + '</h2><button class="modal-close">&times;</button></div>' +
+      '<div style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#f7f5ef;border:1px solid #e3ddcf;border-radius:8px;padding:14px 16px;max-height:55vh;overflow:auto">' + esc(text) + '</div>' +
+      '<div class="form-actions"><button type="button" class="btn btn-outline" onclick="closeModal()">Close</button>' +
+      '<button type="button" class="btn btn-primary" id="wiCopyBtn">📋 Copy to send a walker</button></div>'
+    );
+    const cb = document.getElementById('wiCopyBtn');
+    if (cb) cb.onclick = async () => {
+      try { await navigator.clipboard.writeText(text); toast('Copied. Paste it into your text to the walker.'); }
+      catch (e) { toast('Select the text above and copy it manually.', 'err'); }
+    };
+  } catch (err) { toast(err.message, 'err'); }
 }
 
 async function deleteDog(dogId) {

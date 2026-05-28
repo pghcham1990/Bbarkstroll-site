@@ -38,3 +38,23 @@ test('generateBatchICS emits one VEVENT per appointment', () => {
   const ics = generateBatchICS([appt, { ...appt, id: 43 }], ['client@example.com']);
   assert.strictEqual((ics.match(/BEGIN:VEVENT/g) || []).length, 2);
 });
+
+test('generateICS defaults to METHOD:REQUEST + SEQUENCE:0', () => {
+  process.env.GMAIL_USER = 'owner@example.com';
+  const ics = generateICS(appt, ['client@example.com']);
+  assert.match(ics, /METHOD:REQUEST/);
+  assert.match(ics, /SEQUENCE:0/);
+  assert.match(ics, /UID:appt-42@barkstroll\.com/);
+});
+
+test('generateICS with method=CANCEL emits METHOD:CANCEL + SEQUENCE:1 + same UID', () => {
+  process.env.GMAIL_USER = 'owner@example.com';
+  const original = generateICS(appt, ['client@example.com']);
+  const cancel = generateICS(appt, ['client@example.com'], { method: 'CANCEL', sequence: 1 });
+  assert.match(cancel, /METHOD:CANCEL/);
+  assert.match(cancel, /SEQUENCE:1/);
+  assert.match(cancel, /STATUS:CANCELLED/);
+  // Same UID as the original REQUEST so calendar apps reconcile the cancellation
+  const uidLine = cancel.split('\r\n').find(l => l.startsWith('UID:'));
+  assert.ok(original.includes(uidLine), 'UID must match the original REQUEST');
+});

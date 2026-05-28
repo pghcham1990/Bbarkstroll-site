@@ -76,3 +76,31 @@ test('a fully-sent appointment does nothing on a third call', async () => {
   await email.sendAppointmentEmail(appt);
   assert.strictEqual(fake.calls.length, 0); // all recipients already recorded
 });
+
+test('walker single-booking email body does NOT contain client first name', async () => {
+  // Capture the rendered HTML by inspecting sendMail opts.
+  const captured = { walker: null };
+  const fake = {
+    sendMail: async (opts) => {
+      if (opts.to === 'privwalker@example.com') captured.walker = opts;
+      return { messageId: 'fake' };
+    },
+  };
+  email.__setTransporter(fake);
+  await email.sendAppointmentEmail({
+    ...appt,
+    id: 9002,
+    customer_email: 'privclient@example.com',
+    employee_email: 'privwalker@example.com',
+    customer_name: 'Jane Client',
+    employee_name: 'Walker Person',
+    dog_names: 'Rex',
+    dog_names_with_breed: 'Rex (Lab)',
+  });
+  assert.ok(captured.walker, 'walker email should have been sent');
+  // 'Jane' must not appear in the walker's email body or subject.
+  assert.doesNotMatch(captured.walker.html, /Jane/, 'walker HTML leaked client first name');
+  assert.doesNotMatch(captured.walker.subject, /Jane/, 'walker subject leaked client first name');
+  // Sanity: the dog name should still be there.
+  assert.match(captured.walker.html, /Rex/);
+});

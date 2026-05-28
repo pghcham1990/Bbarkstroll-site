@@ -27,8 +27,19 @@ const VIP_TIERS = [
 function vipTier(revenue) {
   return VIP_TIERS.find(t => (revenue || 0) >= t.min) || null;
 }
-// Gift basket is earned at 25+ completed visits (loyalty by visits, not dollars).
+// Loyalty gifts recur every 25 completed visits (by visits, not dollars). A client
+// "earns" one gift per 25 completed visits over their lifetime; gifts_given is how many
+// we've actually logged handing over. A gift is "due" when they've earned more than logged.
 const GIFT_VISIT_THRESHOLD = 25;
+function giftStatus(c) {
+  const completed = c.completed_count || 0;
+  const earned = Math.floor(completed / GIFT_VISIT_THRESHOLD);
+  const given = c.gifts_given || 0;
+  const nextNumber = given + 1;                 // the gift currently owed (if due) or being earned
+  const due = earned > given;                   // crossed a milestone we haven't logged yet
+  const toNext = Math.max(0, nextNumber * GIFT_VISIT_THRESHOLD - completed); // visits until nextNumber is earned
+  return { completed, earned, given, due, nextNumber, toNext };
+}
 
 async function render_customers(el) {
   el.innerHTML = `
@@ -119,11 +130,11 @@ async function loadCustomers() {
       let vipBadges = '';
       if (!isProspect) {
         const tier = vipTier(c.lifetime_revenue);
-        const giftDue = (c.completed_count || 0) >= GIFT_VISIT_THRESHOLD;
+        const g = giftStatus(c);
         const parts = [];
         if (tier) parts.push('<span class="vip-badge ' + tier.cls + '">' + tier.emoji + ' ' + tier.name + '</span>');
         if (c.lifetime_revenue) parts.push('<span class="vip-spend">$' + Number(c.lifetime_revenue).toFixed(0) + ' lifetime</span>');
-        if (giftDue) parts.push('<span class="vip-gift" title="' + (c.completed_count) + ' completed visits — gift basket earned">🎁 Gift basket due</span>');
+        if (g.due) parts.push('<span class="vip-gift" title="' + g.completed + ' completed visits — gift #' + g.nextNumber + ' earned">🎁 Gift #' + g.nextNumber + ' due</span>');
         if (parts.length) vipBadges = '<div class="list-meta vip-row">' + parts.join('') + '</div>';
       }
 
@@ -164,8 +175,18 @@ function renderSpendBreakdown(c) {
   const tier = vipTier(c.lifetime_revenue);
   const p = c.pace || {};
   if (!c.booked_count) return '';
-  const giftDue = (c.completed_count || 0) >= GIFT_VISIT_THRESHOLD;
-  const toGift = Math.max(0, GIFT_VISIT_THRESHOLD - (c.completed_count || 0));
+  const g = giftStatus(c);
+  const gifts = c.gifts || [];
+  const giftHistory = gifts.length
+    ? '<div class="gift-history">' + gifts.map(x =>
+        '<div class="gift-history-row">' +
+          '<span class="gift-hist-num">🎁 #' + x.gift_number + '</span>' +
+          '<span class="gift-hist-desc">' + (x.description ? esc(x.description) : 'Gift given') + '</span>' +
+          '<span class="gift-hist-date">' + (x.given_at ? fmtShortDate(x.given_at) : '') + '</span>' +
+          '<button class="gift-hist-del" title="Remove this logged gift" onclick="deleteGift(' + x.id + ',' + c.id + ')">×</button>' +
+        '</div>'
+      ).join('') + '</div>'
+    : '';
   return `
     <div class="detail-section vip-panel">
       <div class="detail-section-header">
@@ -180,13 +201,50 @@ function renderSpendBreakdown(c) {
       <div class="spend-sub">
         $${Number(c.lifetime_revenue || 0).toFixed(0)} lifetime · ${c.completed_count || 0} completed · ${(p.visits_per_week || 0).toFixed(1)} visits/wk
       </div>
-      <div class="gift-line ${giftDue ? 'gift-due' : ''}">
-        ${giftDue
-          ? '🎁 <strong>Gift basket earned</strong> (' + c.completed_count + ' visits). Time to drop one off.'
-          : '🎁 ' + toGift + ' more completed visit' + (toGift === 1 ? '' : 's') + ' until a gift basket'}
+      ${giftHistory}
+      <div class="gift-line ${g.due ? 'gift-due' : ''}">
+        <span>${g.due
+          ? '🎁 <strong>Gift #' + g.nextNumber + ' earned</strong> (' + g.completed + ' visits). Time to give it.'
+          : '🎁 ' + g.toNext + ' more completed visit' + (g.toNext === 1 ? '' : 's') + ' until gift #' + g.nextNumber + (g.given ? ' (every 25 visits)' : '')}</span>
+        ${g.due ? '<button class="btn btn-primary btn-sm gift-log-btn" onclick="openGiftForm(' + c.id + ',' + g.nextNumber + ')">🎁 Log gift given</button>' : ''}
       </div>
     </div>
   `;
+}
+
+function openGiftForm(customerId, giftNumber) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  openModal(`
+    <div class="modal-header"><h2>Log Gift #${giftNumber}</h2><button class="modal-close">&times;</button></div>
+    <form id="giftForm">
+      <div class="form-group"><label>What did you give?</label><input name="description" placeholder="e.g. $30 Petagogy gift card" required></div>
+      <div class="form-group"><label>Date given</label><input name="given_at" type="date" value="${today}"></div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Gift</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('giftForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target));
+    body.gift_number = giftNumber;
+    try {
+      await api('/customers/' + customerId + '/gifts', { method: 'POST', body });
+      closeModal();
+      toast('Gift #' + giftNumber + ' logged');
+      loadCustomers();
+    } catch (err) { toast(err.message, 'err'); }
+  };
+}
+
+async function deleteGift(giftId, customerId) {
+  if (!await confirmDialog('Remove this logged gift?')) return;
+  try {
+    await api('/gifts/' + giftId, { method: 'DELETE' });
+    toast('Gift removed');
+    loadCustomers();
+  } catch (err) { toast(err.message, 'err'); }
 }
 
 async function toggleCustomer(id, forceOpen) {

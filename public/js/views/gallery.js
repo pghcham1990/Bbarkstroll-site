@@ -14,7 +14,7 @@ async function render_gallery(el) {
       <div class="glass-panel-body">
         <p style="color:var(--text-soft);font-size:13px;margin-bottom:16px;line-height:1.55;">
           Upload a photo of a real Bark &amp; Stroll client to feature on the public site.
-          Photos are auto-watermarked and optimized. Make sure you have the owner's permission before posting.
+          Pick the client to link the photo to their profile and use it as their avatar. Photos are optimized for the web.
         </p>
 
         <form id="galleryUploadForm" class="gallery-upload-form">
@@ -31,6 +31,13 @@ async function render_gallery(el) {
             <img id="galleryPreview" alt="" style="max-width:100%;max-height:280px;border-radius:12px;border:1px solid rgba(20,97,58,.15);background:var(--cream);">
           </div>
 
+          <div class="form-group">
+            <label for="galleryClient">Client <span style="color:var(--text-soft);font-weight:400;">(links photo &amp; sets their avatar)</span></label>
+            <select id="galleryClient" name="customer_id">
+              <option value="">— No client —</option>
+            </select>
+          </div>
+
           <div class="gallery-fields">
             <div class="form-group">
               <label for="galleryDogName">Dog's name <span style="color:var(--text-soft);font-weight:400;">(optional)</span></label>
@@ -41,11 +48,6 @@ async function render_gallery(el) {
               <input type="text" id="galleryCaption" name="caption" maxlength="120" placeholder="e.g. Bella loves her morning loop">
             </div>
           </div>
-
-          <label class="gallery-consent">
-            <input type="checkbox" id="galleryConsent" required>
-            <span>I have permission from the dog's owner to display this photo publicly on barkstroll.com.</span>
-          </label>
 
           <div class="gallery-upload-actions">
             <button type="submit" class="btn btn-primary" id="galleryUploadBtn" disabled>Upload to Gallery</button>
@@ -100,13 +102,41 @@ async function render_gallery(el) {
   const dropzoneTitle = el.querySelector('#galleryDropzoneTitle');
   const previewWrap = el.querySelector('#galleryPreviewWrap');
   const preview = el.querySelector('#galleryPreview');
-  const consent = el.querySelector('#galleryConsent');
   const uploadBtn = el.querySelector('#galleryUploadBtn');
   const status = el.querySelector('#galleryUploadStatus');
   const form = el.querySelector('#galleryUploadForm');
+  const clientSelect = el.querySelector('#galleryClient');
+
+  // Populate the client dropdown with active clients (skip prospects + internal rows).
+  fetch('/admin/api/customers')
+    .then(r => r.json())
+    .then(list => {
+      (list || [])
+        .filter(c => c.status !== 'prospect' && c.status !== 'internal')
+        .forEach(c => {
+          const o = document.createElement('option');
+          o.value = c.id;
+          o.textContent = (c.last_name || '') + ', ' + (c.first_name || '');
+          clientSelect.appendChild(o);
+        });
+    })
+    .catch(() => {});
+
+  // Pick a client → auto-fill the dog name(s) from their profile (no retyping).
+  clientSelect.addEventListener('change', () => {
+    const id = clientSelect.value;
+    if (!id) return;
+    fetch('/admin/api/customers/' + id)
+      .then(r => r.json())
+      .then(c => {
+        const names = (c.dogs || []).map(d => d.name).filter(Boolean);
+        if (names.length) el.querySelector('#galleryDogName').value = names.join(' & ');
+      })
+      .catch(() => {});
+  });
 
   function refreshCanSubmit() {
-    uploadBtn.disabled = !(fileInput.files && fileInput.files[0] && consent.checked);
+    uploadBtn.disabled = !(fileInput.files && fileInput.files[0]);
   }
 
   fileInput.addEventListener('change', () => {
@@ -121,8 +151,6 @@ async function render_gallery(el) {
     }
     refreshCanSubmit();
   });
-
-  consent.addEventListener('change', refreshCanSubmit);
 
   ['dragenter','dragover'].forEach(ev =>
     dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('is-drag'); })
@@ -146,6 +174,7 @@ async function render_gallery(el) {
     fd.append('photo', f);
     fd.append('caption', el.querySelector('#galleryCaption').value);
     fd.append('dog_name', el.querySelector('#galleryDogName').value);
+    fd.append('customer_id', clientSelect.value);
     fd.append('consent', 'true');
 
     uploadBtn.disabled = true;

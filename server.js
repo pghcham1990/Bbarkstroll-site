@@ -90,8 +90,13 @@ app.get('/portal', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Static assets for admin app
-app.use('/admin/static', express.static(path.join(__dirname, 'public')));
+// Static assets for admin app.
+// no-cache => browser revalidates each load (ETag 304 when unchanged), so view-script
+// edits always show after a normal reload instead of serving a stale cached copy.
+app.use('/admin/static', express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+}));
 
 // Customer portal
 app.get('/client', requireAuth, requireRole('customer'), (_req, res) => {

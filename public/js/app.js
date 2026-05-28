@@ -14,6 +14,7 @@ const PAGE_TITLES = {
   docgen: 'Document Generator',
   messages: 'Messages',
   reports: 'Reports',
+  pricing: 'Pricing Sheet',
   applicants: 'Applicants'
 };
 
@@ -73,15 +74,20 @@ function confirmDialog(msg) {
 }
 
 /* --- Format helpers --- */
+// A bare "YYYY-MM-DD" is a calendar date, not an instant — anchor it to local noon so
+// converting to Eastern can't roll it back a day (new Date('2026-05-27') is UTC midnight).
+function _toDate(iso) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(iso + 'T12:00:00') : new Date(iso);
+}
 function fmtDate(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d = _toDate(iso);
   return d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' });
 }
 // Compact date for card badges: "May 17" same year, "May 17, 2025" otherwise. Always America/New_York.
 function fmtShortDate(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d = _toDate(iso);
   const opts = { timeZone: 'America/New_York', month: 'short', day: 'numeric' };
   const nowYear = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', year: 'numeric' });
   const dYear = d.toLocaleString('en-US', { timeZone: 'America/New_York', year: 'numeric' });

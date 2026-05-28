@@ -44,6 +44,8 @@ db.exec(`
     email       TEXT,
     phone       TEXT,
     active      INTEGER NOT NULL DEFAULT 1,
+    onboarding_cost REAL NOT NULL DEFAULT 0,
+    pay_method  TEXT,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 

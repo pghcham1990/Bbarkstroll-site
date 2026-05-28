@@ -19,6 +19,33 @@ function ytdVisits(employeeId, year) {
   `).get(employeeId, `${year}-01-01`, `${year + 1}-01-01`).c;
 }
 
+// Lifetime profitability vs. what the hire cost. Each completed billable visit
+// earns the client's rate and costs us the flat $20 walker pay; a team member is
+// "profitable" once their cumulative margin clears their onboarding cost
+// (e.g. background check). balance = sum(client_rate) - $20*visits - onboarding_cost.
+function lifetimePnl(employeeId, onboardingCost) {
+  const r = db.prepare(`
+    SELECT COUNT(*) AS visits, COALESCE(SUM(c.rate), 0) AS revenue
+    FROM appointments a
+    LEFT JOIN services s ON s.id = a.service_id
+    LEFT JOIN customers c ON c.id = a.customer_id
+    WHERE a.employee_id = ? AND a.status = 'completed'
+      AND COALESCE(s.name, '') <> 'Meet & Greet'
+  `).get(employeeId);
+  const cost = Number(onboardingCost) || 0;
+  const pay = r.visits * WALKER_PAY_PER_VISIT;
+  const moneyMade = r.revenue - pay;   // total margin she has generated (client rate - $20/walk)
+  return {
+    visits: r.visits,
+    revenue: r.revenue,
+    pay,
+    onboarding_cost: cost,
+    money_made: moneyMade,             // gross money generated for you (the paid-off cost counts as money made)
+    paid_off: moneyMade >= cost,       // cleared the onboarding cost -> profitable asset
+    balance: moneyMade - cost,         // net after the cost (informational)
+  };
+}
+
 function decorate(rows) {
   const year = new Date().getFullYear();
   const w9Stmt = db.prepare(
@@ -27,6 +54,7 @@ function decorate(rows) {
   for (const e of rows) {
     e.has_w9 = !!w9Stmt.get(e.id);
     if (e.crew_type === 'contractor') {
+      e.pnl = lifetimePnl(e.id, e.onboarding_cost); // profitability tracking is 1099-only
       const visits = ytdVisits(e.id, year);
       e.ytd_visits = visits;
       e.ytd_paid = visits * WALKER_PAY_PER_VISIT;
@@ -57,22 +85,26 @@ router.get('/employees/:id', (req, res) => {
 
 // Create employee
 router.post('/employees', (req, res) => {
-  const { first_name, last_name, email, phone, crew_type } = req.body;
+  const { first_name, last_name, email, phone, crew_type, onboarding_cost, pay_method } = req.body;
   if (!first_name || !last_name) return res.status(400).json({ error: 'First and last name required' });
   const crew = crew_type === 'core' ? 'core' : 'contractor'; // new hires default to 1099 contractor
+  const cost = parseFloat(onboarding_cost) || 0;
   const result = db.prepare(
-    'INSERT INTO employees (first_name, last_name, email, phone, crew_type) VALUES (?, ?, ?, ?, ?)'
-  ).run(first_name, last_name, email || null, phone || null, crew);
+    'INSERT INTO employees (first_name, last_name, email, phone, crew_type, onboarding_cost, pay_method) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(first_name, last_name, email || null, phone || null, crew, cost, pay_method || null);
   res.json({ ok: true, id: result.lastInsertRowid });
 });
 
 // Update employee
 router.put('/employees/:id', (req, res) => {
-  const { first_name, last_name, email, phone, active, crew_type } = req.body;
+  const { first_name, last_name, email, phone, active, crew_type, onboarding_cost, pay_method } = req.body;
   if (!first_name || !last_name) return res.status(400).json({ error: 'First and last name required' });
   const crew = crew_type === 'core' ? 'core' : (crew_type === 'contractor' ? 'contractor' : null);
-  db.prepare('UPDATE employees SET first_name=?, last_name=?, email=?, phone=?, active=?, crew_type=COALESCE(?, crew_type) WHERE id=?').run(
-    first_name, last_name, email || null, phone || null, active !== undefined ? Number(active) : 1, crew, req.params.id
+  const cost = (onboarding_cost === undefined || onboarding_cost === '') ? null : (parseFloat(onboarding_cost) || 0);
+  // pay_method: '' clears it (NULL), undefined leaves it untouched (COALESCE).
+  const pay = pay_method === undefined ? null : (pay_method ? String(pay_method).trim() : '');
+  db.prepare('UPDATE employees SET first_name=?, last_name=?, email=?, phone=?, active=?, crew_type=COALESCE(?, crew_type), onboarding_cost=COALESCE(?, onboarding_cost), pay_method=CASE WHEN ? IS NULL THEN pay_method ELSE NULLIF(?, \'\') END WHERE id=?').run(
+    first_name, last_name, email || null, phone || null, active !== undefined ? Number(active) : 1, crew, cost, pay, pay, req.params.id
   );
   res.json({ ok: true });
 });

@@ -69,7 +69,35 @@ async function loadEmployees() {
           <div class="team-contact">${fmtPhone(e.phone) || e.email || 'No contact info'}</div>
           ${crewTag}
           ${e.has_w9 ? '<div class="crew-tag" style="background:#e7f3ec;color:#14613a" title="W-9 on file">📄 W-9 on file ✓</div>' : ''}
+          ${e.pay_method ? `<div class="crew-tag" style="background:#eef2fb;color:#3b5bb0" title="Preferred payout method for the $20-per-visit pay">💸 Pays via ${esc(e.pay_method)}</div>` : ''}
           ${irsBlock}
+          ${(() => {
+            if (isCore) return ''; // profitability tracking is 1099-contractor-only
+            const p = e.pnl || { money_made: 0, onboarding_cost: 0, visits: 0, paid_off: false };
+            const made = p.money_made || 0;
+            const cost = p.onboarding_cost || 0;
+            const paidOff = !!p.paid_off;
+            const $ = (n) => '$' + Math.round(n).toLocaleString();
+            if (!paidOff) {
+              // Phase 1: paying off the onboarding cost. Bar fills as money-made approaches the cost.
+              const pct = cost > 0 ? Math.max(0, Math.min(100, Math.round((Math.max(0, made) / cost) * 100))) : 0;
+              return `
+          <div class="pnl-block pnl-red">
+            <div class="pnl-line"><span>🔴 Paying off cost</span><span>${$(Math.max(0, made))} of ${$(cost)}</span></div>
+            <div class="pnl-bar"><div class="pnl-fill" style="width:${pct}%"></div></div>
+            <div class="pnl-note">${p.visits} walk${p.visits === 1 ? '' : 's'} · ${$(Math.max(0, cost - made))} left to clear her cost</div>
+          </div>`;
+            }
+            // Phase 2: paid off — now a profitable asset. Show total money made, growing toward the next milestone.
+            const milestone = Math.max(100, Math.ceil((made + 1) / 100) * 100);
+            const pct = Math.max(3, Math.round((made / milestone) * 100));
+            return `
+          <div class="pnl-block pnl-green">
+            <div class="pnl-line"><span>💰 Money made</span><span class="pnl-big">${$(made)}</span></div>
+            <div class="pnl-bar"><div class="pnl-fill" style="width:${pct}%"></div></div>
+            <div class="pnl-note">Paid off ✓ · ${p.visits} walks · climbing to ${$(milestone)}</div>
+          </div>`;
+          })()}
           <div class="team-status ${e.active ? 'active' : 'inactive'}">${e.active ? 'Active' : 'Inactive'}</div>
           <div class="team-actions">
             <button class="btn btn-outline btn-sm" onclick="openWalkerDocs(${e.id}, '${esc((e.first_name||'') + ' ' + (e.last_name||'')).replace(/'/g, "\\'")}')">📁 Documents</button>
@@ -102,6 +130,19 @@ function openEmployeeForm(id) {
             <option value="core" ${e.crew_type === 'core' ? 'selected' : ''}>Original Crew (founding, informal)</option>
           </select>
           <small style="color:var(--text-soft);font-size:.68rem;display:block;margin-top:.25rem">New hires are 1099 contractors. 1099-NEC issued if paid $600+ in a year.</small>
+        </div>
+        <div class="form-group"><label>Onboarding cost ($)</label><input name="onboarding_cost" type="number" step="0.01" min="0" value="${e.onboarding_cost != null ? e.onboarding_cost : ''}" placeholder="e.g. 75 for background check"><small style="color:var(--text-soft);font-size:.68rem;display:block;margin-top:.25rem">What this hire cost you up front (background check, etc). They show a red bar until their walks earn it back, then flip green.</small></div>
+        <div class="form-group">
+          <label>Preferred payout method</label>
+          <select name="pay_method">
+            ${(() => {
+              const opts = ['', 'Venmo', 'Zelle', 'PayPal', 'Cash App', 'Cash', 'Direct deposit', 'Check'];
+              const cur = e.pay_method || '';
+              if (cur && !opts.includes(cur)) opts.push(cur);
+              return opts.map(o => `<option value="${esc(o)}" ${o === cur ? 'selected' : ''}>${o === '' ? '— none set —' : esc(o)}</option>`).join('');
+            })()}
+          </select>
+          <small style="color:var(--text-soft);font-size:.68rem;display:block;margin-top:.25rem">How they want their $20-per-visit pay sent. Shows as a badge on their card.</small>
         </div>
         ${isEdit ? `<div class="form-group"><label>Status</label><select name="active"><option value="1" ${e.active ? 'selected' : ''}>Active</option><option value="0" ${!e.active ? 'selected' : ''}>Inactive</option></select></div>` : ''}
         <div class="form-actions">

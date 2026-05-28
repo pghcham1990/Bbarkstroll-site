@@ -1619,3 +1619,15 @@ body.admin-app::after {
 .irs-note { font-size: .62rem; color: var(--text-soft); margin-top: 3px; }
 .irs-over .irs-fill { background: #d9534f; }
 .irs-over .irs-note { color: #c9302c; font-weight: 700; }
+
+/* Per-employee profitability bar (red until they earn back their onboarding cost, then green) */
+.pnl-block { width: 100%; margin: .5rem 0 .1rem; }
+.pnl-line { display: flex; justify-content: space-between; font-size: .68rem; font-weight: 700; margin-bottom: 3px; }
+.pnl-bar { height: 7px; border-radius: 4px; background: rgba(0,0,0,.07); overflow: hidden; }
+.pnl-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+.pnl-note { font-size: .62rem; color: var(--text-soft); margin-top: 3px; }
+.pnl-red .pnl-line { color: #c9302c; }
+.pnl-red .pnl-fill { background: #d9534f; }
+.pnl-green .pnl-line { color: #14613a; }
+.pnl-green .pnl-fill { background: var(--forest, #2e7d52); }
+.pnl-big { font-size: 1rem; font-weight: 800; letter-spacing: -.01em; }

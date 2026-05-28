@@ -218,11 +218,56 @@ router.put('/appointments/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// Delete appointment (hard delete)
+// Hard delete — admin tooling only. The calendar UI's "Cancel Appointment"
+// button uses POST /appointments/:id/cancel (below), which soft-cancels and
+// emails all three parties. Don't wire this DELETE to user-facing UI.
 router.delete('/appointments/:id', (req, res) => {
   db.prepare('DELETE FROM appointment_dogs WHERE appointment_id = ?').run(req.params.id);
   db.prepare('DELETE FROM appointments WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
+});
+
+// Soft-cancel: flip status to 'cancelled', stamp cancelled_at/_by, and email
+// client + walker + owner with a METHOD:CANCEL ICS so their calendars
+// auto-remove the event. Bypasses quiet hours — missing a cancel is worse
+// than waking someone up.
+router.post('/appointments/:id/cancel', async (req, res) => {
+  const id = req.params.id;
+  const existing = db.prepare('SELECT id, status FROM appointments WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (existing.status === 'completed') return res.status(400).json({ error: 'Cannot cancel a completed visit' });
+  if (existing.status === 'cancelled') return res.json({ ok: true, already_cancelled: true });
+
+  const cancelledBy = (req.session && req.session.user && (req.session.user.display_name || req.session.user.username)) || 'admin';
+  db.prepare(`
+    UPDATE appointments
+       SET status = 'cancelled',
+           cancelled_at = datetime('now'),
+           cancelled_by = ?,
+           updated_at = datetime('now')
+     WHERE id = ?
+  `).run(cancelledBy, id);
+
+  // Lazily-loaded email lib (mirrors the create flow's try/require pattern).
+  let sendCancellationEmail = null;
+  try { sendCancellationEmail = require('../lib/email').sendCancellationEmail; } catch {}
+
+  let emailSent = false;
+  let emailError = null;
+  if (sendCancellationEmail) {
+    try {
+      const appt = fetchApptWithJoins(id);
+      // Inject cancelled_by so the email body can render it.
+      appt.cancelled_by = cancelledBy;
+      await sendCancellationEmail(appt);
+      emailSent = true;
+    } catch (err) {
+      console.error('Cancellation email failed for appt ' + id + ':', err.message);
+      emailError = err.message;
+    }
+  }
+
+  res.json({ ok: true, email_sent: emailSent, email_error: emailError });
 });
 
 // Process queued emails (called by background job in server.js).

@@ -93,3 +93,103 @@ test('sendCancellationEmail records kind="appt_cancel" rows per recipient', () =
   ).all().map(r => r.recipient_role).sort();
   assert.deepStrictEqual(rows, ['customer', 'employee', 'owner']);
 });
+
+// ---------------------------------------------------------------------------
+// Endpoint tests: POST /appointments/:id/cancel
+// ---------------------------------------------------------------------------
+
+const express = require('express');
+const router = require('../routes/appointments');
+
+// Minimal app — mount the appointments router and fake a session admin user
+// so the handler can read req.session.user.display_name.
+function makeApp() {
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    req.session = { user: { id: 1, username: 'scott', display_name: 'Scott', role: 'admin' } };
+    next();
+  });
+  app.use(router);
+  return app;
+}
+
+function seedApptInDb(opts) {
+  // Build a minimal schema if missing. (cancel-email.test.js uses its own
+  // BARKSTROLL_DB_PATH, so the appointments table won't exist by default.)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS customers (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, email TEXT, address TEXT);
+    CREATE TABLE IF NOT EXISTS employees (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, email TEXT);
+    CREATE TABLE IF NOT EXISTS dogs (id INTEGER PRIMARY KEY, customer_id INTEGER, name TEXT, breed TEXT);
+    CREATE TABLE IF NOT EXISTS services (id INTEGER PRIMARY KEY, name TEXT);
+    CREATE TABLE IF NOT EXISTS appointments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, customer_id INTEGER, dog_id INTEGER,
+      employee_id INTEGER, service_id INTEGER, start_time TEXT, end_time TEXT,
+      status TEXT NOT NULL DEFAULT 'scheduled', notes TEXT,
+      email_sent INTEGER NOT NULL DEFAULT 0, batch_id TEXT,
+      cancelled_at TEXT, cancelled_by TEXT,
+      created_at TEXT, updated_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS appointment_dogs (
+      appointment_id INTEGER, dog_id INTEGER, PRIMARY KEY (appointment_id, dog_id)
+    );
+  `);
+  db.prepare('INSERT OR REPLACE INTO customers VALUES (?,?,?,?,?)').run(101, 'Pat', 'Client', 'cclient2@example.com', '99 Oak Ln');
+  db.prepare('INSERT OR REPLACE INTO employees VALUES (?,?,?,?)').run(201, 'Wendy', 'Walker', 'cwalker2@example.com');
+  db.prepare('INSERT OR REPLACE INTO dogs VALUES (?,?,?,?)').run(301, 101, 'Cooper', 'Golden');
+  db.prepare('INSERT OR REPLACE INTO services VALUES (?,?)').run(401, 'Dog Walking');
+  const info = db.prepare(`INSERT INTO appointments
+    (customer_id, dog_id, employee_id, service_id, start_time, end_time, status, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,datetime('now'),datetime('now'))`).run(
+      101, 301, 201, 401,
+      '2026-06-15T15:00:00.000Z', '2026-06-15T15:30:00.000Z',
+      opts && opts.status || 'scheduled');
+  db.prepare('INSERT OR REPLACE INTO appointment_dogs VALUES (?,?)').run(info.lastInsertRowid, 301);
+  return info.lastInsertRowid;
+}
+
+let server, port;
+before(async () => {
+  await new Promise(r => { server = makeApp().listen(0, r); });
+  port = server.address().port;
+});
+after(() => { server && server.close(); });
+
+test('POST /appointments/:id/cancel marks cancelled + sends 3 emails', async () => {
+  const id = seedApptInDb();
+  const fake = makeCapturingTransport();
+  email.__setTransporter(fake);
+  const res = await fetch(`http://127.0.0.1:${port}/appointments/${id}/cancel`, { method: 'POST' });
+  assert.strictEqual(res.status, 200);
+  const body = await res.json();
+  assert.strictEqual(body.ok, true);
+  // DB row updated
+  const row = db.prepare('SELECT status, cancelled_at, cancelled_by FROM appointments WHERE id=?').get(id);
+  assert.strictEqual(row.status, 'cancelled');
+  assert.ok(row.cancelled_at, 'cancelled_at should be set');
+  assert.strictEqual(row.cancelled_by, 'Scott');
+  // Three emails fired
+  assert.strictEqual(fake.calls.length, 3);
+});
+
+test('POST /appointments/:id/cancel on already-cancelled is a no-op', async () => {
+  const id = seedApptInDb({ status: 'cancelled' });
+  const fake = makeCapturingTransport();
+  email.__setTransporter(fake);
+  const res = await fetch(`http://127.0.0.1:${port}/appointments/${id}/cancel`, { method: 'POST' });
+  assert.strictEqual(res.status, 200);
+  const body = await res.json();
+  assert.strictEqual(body.already_cancelled, true);
+  assert.strictEqual(fake.calls.length, 0);
+});
+
+test('POST /appointments/:id/cancel on completed returns 400', async () => {
+  const id = seedApptInDb({ status: 'completed' });
+  const res = await fetch(`http://127.0.0.1:${port}/appointments/${id}/cancel`, { method: 'POST' });
+  assert.strictEqual(res.status, 400);
+});
+
+test('POST /appointments/:id/cancel on missing id returns 404', async () => {
+  const res = await fetch(`http://127.0.0.1:${port}/appointments/999999/cancel`, { method: 'POST' });
+  assert.strictEqual(res.status, 404);
+});

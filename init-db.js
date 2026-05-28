@@ -66,6 +66,8 @@ db.exec(`
     notes       TEXT,
     email_sent  INTEGER NOT NULL DEFAULT 0,
     batch_id    TEXT,
+    cancelled_at TEXT,
+    cancelled_by TEXT,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
   );

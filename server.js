@@ -32,6 +32,7 @@ app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 require('fs').mkdirSync(require('path').join(__dirname, 'data', 'secure-docs'), { recursive: true, mode: 0o700 });
 require('./migrate-employee-documents').migrate(require('./lib/db')); // idempotent; ensures W-9 doc tables exist on every boot
 require('./migrate-email-sends').migrate(require('./lib/db')); // idempotent; per-recipient email idempotency table
+require('./migrate-cancel-columns').migrate(require('./lib/db')); // idempotent; add cancelled_at and cancelled_by columns
 const SqliteStore = require('./lib/session-store');
 app.use(session({
   store: SqliteStore(),

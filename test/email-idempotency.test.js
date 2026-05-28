@@ -104,3 +104,35 @@ test('walker single-booking email body does NOT contain client first name', asyn
   // Sanity: the dog name should still be there.
   assert.match(captured.walker.html, /Rex/);
 });
+
+test('walker batch email intro does NOT contain client first name', async () => {
+  const captured = { walker: null };
+  const fake = {
+    sendMail: async (opts) => {
+      if (opts.to === 'batchwalker@example.com') captured.walker = opts;
+      return { messageId: 'fake' };
+    },
+  };
+  email.__setTransporter(fake);
+  const a1 = {
+    id: 9003, batch_id: 'btest-1',
+    customer_email: 'batchclient@example.com',
+    employee_email: 'batchwalker@example.com',
+    customer_name: 'Maria Client',
+    employee_name: 'Walker Person',
+    customer_address: '1 Main St',
+    dog_names: 'Bella',
+    dog_names_with_breed: 'Bella (Poodle)',
+    dogs: [{ name: 'Bella' }],
+    service_name: 'Dog Walking',
+    start_time: '2026-06-02T15:00:00.000Z',
+    end_time: '2026-06-02T15:30:00.000Z',
+    notes: null,
+  };
+  const a2 = { ...a1, id: 9004, start_time: '2026-06-04T15:00:00.000Z', end_time: '2026-06-04T15:30:00.000Z' };
+  await email.sendBatchAppointmentEmail([a1, a2]);
+  assert.ok(captured.walker);
+  assert.doesNotMatch(captured.walker.html, /Maria/, 'walker batch HTML leaked client first name');
+  assert.doesNotMatch(captured.walker.subject, /Maria/, 'walker batch subject leaked client first name');
+  assert.match(captured.walker.html, /Bella/);
+});

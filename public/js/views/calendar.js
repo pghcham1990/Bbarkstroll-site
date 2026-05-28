@@ -173,11 +173,13 @@ async function viewAppt(id) {
 }
 
 async function cancelAppt(id) {
-  if (!await confirmDialog('Cancel this appointment?')) return;
+  if (!await confirmDialog('Cancel this appointment? Client and walker will be emailed.')) return;
   try {
-    await api('/appointments/' + id, { method: 'DELETE' });
+    const r = await api('/appointments/' + id + '/cancel', { method: 'POST' });
     closeModal();
-    toast('Appointment cancelled');
+    if (r && r.already_cancelled) toast('Already cancelled — no emails sent');
+    else if (r && r.email_sent === false) toast('Cancelled, but email send failed: ' + (r.email_error || 'unknown'), 'err');
+    else toast('Appointment cancelled — emails sent');
     renderCal();
   } catch (e) { toast(e.message, 'err'); }
 }

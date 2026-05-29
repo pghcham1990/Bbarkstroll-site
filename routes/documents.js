@@ -149,6 +149,14 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
       messages
     });
 
+    try {
+      require('/opt/shared/llm-usage').createUsageLog('/opt/shared/llm-usage.db').record({
+        app: 'barkstroll', model: 'claude-sonnet-4-20250514', kind: 'bs_document', source: 'anthropic',
+        input_tokens: response.usage && response.usage.input_tokens,
+        output_tokens: response.usage && response.usage.output_tokens,
+      });
+    } catch (e) { /* usage logging must never break the feature */ }
+
     const aiText = response.content[0].text;
     let docData;
     try {

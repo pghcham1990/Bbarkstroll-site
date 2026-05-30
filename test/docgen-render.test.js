@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { computeTotals, groupByDay, layoutRows } = require('../lib/docgen-render');
+const { computeTotals, groupByDay, layoutRows, renderDoc } = require('../lib/docgen-render');
 
 function mkVisits() {
   const v = [
@@ -63,4 +63,30 @@ test('layoutRows: long job collapses identical consecutive days', () => {
   const range = rows.find(r => r.kind === 'range');
   assert.ok(range, 'has a range row');
   assert.strictEqual(range.amount, 20 * 3 * 25);
+});
+
+test('renderDoc: compact one-page proposal with correct total + no phantom visit', () => {
+  const html = renderDoc({
+    docType: 'proposal',
+    docNumber: '#BBS-2026-0716',
+    client: { first_name: 'Cris', last_name: "O'Connor", address: 'Bridgeville, PA', phone: '7245540149' },
+    dogs: [{ name: 'Maggie' }],
+    visits: mkVisits(),
+    rate: 25,
+  });
+  assert.ok(html.includes('Bark'), 'has brand');
+  assert.ok(html.includes('Proposed Services'), 'proposal badge');
+  assert.ok(html.includes('$425.00'), 'total computed in code');
+  assert.ok(html.includes('Maggie'), 'pet name');
+  assert.ok(html.includes('Cris'), 'client name');
+  assert.ok(html.includes('3:00 PM') && html.includes('9:00 PM'), '16th times present');
+});
+
+test('renderDoc: escapes malicious label (XSS safe)', () => {
+  const html = renderDoc({
+    docType: 'invoice', docNumber: '#X', client: { first_name: 'A', last_name: 'B' }, dogs: [],
+    visits: [{ date: '2026-07-16', time: '3:00 PM', label: '<script>alert(1)</script>' }], rate: 25,
+  });
+  assert.ok(!html.includes('<script>alert(1)</script>'), 'script not raw');
+  assert.ok(html.includes('&lt;script&gt;'), 'script escaped');
 });

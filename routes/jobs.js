@@ -60,11 +60,26 @@ function getJobView(database, jobId) {
 }
 
 function createJobForDocument(database, { customer_id, document_id }) {
-  const existing = database.prepare('SELECT id FROM jobs WHERE document_id=?').get(document_id);
-  if (existing) return getJobView(database, existing.id);
   const visits = getDocVisits(database, document_id);
   const dates = logic.uniqueDates(visits);
   if (!dates.length) throw new Error('proposal has no visits to staff');
+
+  const existing = database.prepare('SELECT id, status FROM jobs WHERE document_id=?').get(document_id);
+  if (existing) {
+    // One job per document (idempotent on identity): re-creating returns the SAME job row,
+    // re-synced to the proposal's current day-set (fresh draft) so re-opening the staffing
+    // panel never duplicates the job or carries a stale day list. Any appointments a prior
+    // Post created are left intact; the job row itself reverts to a re-staffable draft.
+    const ins = database.prepare('INSERT INTO job_assignments (job_id, date) VALUES (?, ?)');
+    const tx = database.transaction(() => {
+      database.prepare('DELETE FROM job_assignments WHERE job_id=?').run(existing.id);
+      for (const d of dates) ins.run(existing.id, d);
+      database.prepare("UPDATE jobs SET status='draft', updated_at=datetime('now') WHERE id=?").run(existing.id);
+    });
+    tx();
+    return getJobView(database, existing.id);
+  }
+
   const info = database.prepare('INSERT INTO jobs (customer_id, document_id) VALUES (?, ?)').run(customer_id, document_id);
   const ins = database.prepare('INSERT INTO job_assignments (job_id, date) VALUES (?, ?)');
   const tx = database.transaction(() => { for (const d of dates) ins.run(info.lastInsertRowid, d); });

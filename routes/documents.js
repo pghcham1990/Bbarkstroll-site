@@ -190,7 +190,7 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
             <div class="service-name">${escHtml(s.name)}</div>
             <div class="service-detail">${escHtml(s.detail)}</div>
           </td>
-          <td><div class="service-detail">${escHtml(s.date_time)}</div></td>
+          <td><div class="service-detail">${escHtmlBr(s.date_time)}</div></td>
           <td class="service-price">${escHtml(s.price)}</td>
         </tr>`).join('');
 
@@ -256,7 +256,7 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
       <div class="billing-section">
         <h3>Service Period</h3>
         <p><strong>${escHtml(docData.service_period_title)}</strong></p>
-        <p style="margin-top:6px;">${escHtml(docData.service_period_detail)}</p>
+        <p style="margin-top:6px;">${escHtmlBr(docData.service_period_detail)}</p>
       </div>
     </div>
 
@@ -432,6 +432,14 @@ router.delete('/documents/:id', requireRole('admin'), (req, res) => {
 function escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Like escHtml, but honors line breaks: escape everything for XSS safety, then
+// restore the <br> tags the AI is instructed to emit (service_period_detail,
+// date_time) plus any real newlines. Only <br> survives; <script> etc. stay
+// escaped. Function declaration so it hoists above the render fn that uses it.
+function escHtmlBr(s) {
+  return escHtml(s).replace(/&lt;br\s*\/?&gt;/gi, '<br>').replace(/\r\n|\r|\n/g, '<br>');
 }
 
 function escRegex(s) {

@@ -319,7 +319,7 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
 // Save document (generate PDF + persist)
 router.post('/documents/save', requireRole('admin'), async (req, res) => {
   try {
-    const { customer_id, doc_type, html_content, conversation, doc_number } = req.body;
+    const { customer_id, doc_type, html_content, conversation, doc_number, visits_json } = req.body;
     if (!customer_id || !html_content) {
       return res.status(400).json({ error: 'customer_id and html_content required' });
     }
@@ -364,8 +364,8 @@ router.post('/documents/save', requireRole('admin'), async (req, res) => {
 
     // Save to database
     const result = db.prepare(`
-      INSERT INTO documents (customer_id, type, doc_number, file_id, filename, html_content, conversation, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'saved')
+      INSERT INTO documents (customer_id, type, doc_number, file_id, filename, html_content, conversation, status, visits_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'saved', ?)
     `).run(
       customer_id,
       type,
@@ -373,7 +373,8 @@ router.post('/documents/save', requireRole('admin'), async (req, res) => {
       fileId,
       safeFilename,
       html_content,
-      JSON.stringify(conversation || [])
+      JSON.stringify(conversation || []),
+      visits_json ? JSON.stringify(typeof visits_json === 'string' ? JSON.parse(visits_json) : visits_json) : null
     );
 
     res.json({

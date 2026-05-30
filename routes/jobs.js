@@ -87,16 +87,28 @@ function createJobForDocument(database, { customer_id, document_id }) {
   return getJobView(database, info.lastInsertRowid);
 }
 
+// Normalize an incoming employee_id to either a valid positive integer or null.
+// Guards against a malformed 0/"" sneaking in: 0 would satisfy `IS NOT NULL` and
+// falsely mark a day "filled" with a non-existent walker, then post appointments
+// with employee_id=0. Anything not a positive integer becomes null (= open).
+function normalizeEmployeeId(employee_id) {
+  const n = Number(employee_id);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 function setAssignment(database, jobId, date, employee_id) {
+  const emp = normalizeEmployeeId(employee_id);
   database.prepare("UPDATE job_assignments SET employee_id=?, updated_at=datetime('now') WHERE job_id=? AND date=?")
-    .run(employee_id, jobId, date);
+    .run(emp, jobId, date);
   database.prepare("UPDATE jobs SET updated_at=datetime('now') WHERE id=?").run(jobId);
   return getJobView(database, jobId);
 }
 
 function assignAllOpen(database, jobId, employee_id) {
+  const emp = normalizeEmployeeId(employee_id);
+  if (emp == null) throw new Error('a valid walker is required');
   database.prepare("UPDATE job_assignments SET employee_id=?, updated_at=datetime('now') WHERE job_id=? AND employee_id IS NULL")
-    .run(employee_id, jobId);
+    .run(emp, jobId);
   database.prepare("UPDATE jobs SET updated_at=datetime('now') WHERE id=?").run(jobId);
   return getJobView(database, jobId);
 }

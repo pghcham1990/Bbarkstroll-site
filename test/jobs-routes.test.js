@@ -86,3 +86,26 @@ test('postJob: cannot post twice', () => {
   jobsLogic.postJob(db, job.id);
   assert.throws(() => jobsLogic.postJob(db, job.id), /already posted/i);
 });
+
+test('setAssignment: rejects employee_id=0 (treated as open, not "filled")', () => {
+  const job = jobsLogic.createJobForDocument(db, { customer_id: 20, document_id: 10 });
+  jobsLogic.setAssignment(db, job.id, '2026-07-16', 0); // invalid sentinel
+  const view = jobsLogic.getJobView(db, job.id);
+  const sixteenth = view.assignments.find(a => a.date === '2026-07-16');
+  assert.strictEqual(sixteenth.employee_id, null, '0 normalized to null (open)');
+  assert.strictEqual(view.fill.filled, 0, 'a 0 does not count as filled');
+});
+
+test('postJob: each day posts with its OWN walker (not one for all)', () => {
+  const job = jobsLogic.createJobForDocument(db, { customer_id: 20, document_id: 10 });
+  jobsLogic.setAssignment(db, job.id, '2026-07-16', 6); // Tiffany
+  jobsLogic.setAssignment(db, job.id, '2026-07-17', 2); // Scott
+  const result = jobsLogic.postJob(db, job.id);
+  const appts = db.prepare('SELECT start_time, employee_id FROM appointments WHERE batch_id=?').all(result.batch_id);
+  const on16 = appts.filter(a => a.start_time.slice(0, 10) === '2026-07-16');
+  const on17 = appts.filter(a => a.start_time.slice(0, 10) === '2026-07-17');
+  assert.strictEqual(on16.length, 2);
+  assert.ok(on16.every(a => a.employee_id === 6), '16th = Tiffany');
+  assert.strictEqual(on17.length, 1);
+  assert.strictEqual(on17[0].employee_id, 2, '17th = Scott');
+});

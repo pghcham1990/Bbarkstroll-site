@@ -31,6 +31,7 @@ app.use(express.json({ limit: '64kb' }));
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 require('fs').mkdirSync(require('path').join(__dirname, 'data', 'secure-docs'), { recursive: true, mode: 0o700 });
 require('./migrate-employee-documents').migrate(require('./lib/db')); // idempotent; ensures W-9 doc tables exist on every boot
+require('./migrate-jobs').migrate(require('./lib/db')); // idempotent; ensures job staffing tables exist on every boot
 require('./migrate-email-sends').migrate(require('./lib/db')); // idempotent; per-recipient email idempotency table
 require('./migrate-cancel-columns').migrate(require('./lib/db')); // idempotent; add cancelled_at and cancelled_by columns
 const SqliteStore = require('./lib/session-store');
@@ -417,6 +418,7 @@ app.use('/admin/api', adminOnly, require('./routes/gallery'));
 app.use('/admin/api', adminOnly, require('./routes/applicants'));
 app.use('/admin/api', adminOnly, require('./routes/content'));
 app.use('/admin/api', adminOnly, require('./routes/employee-documents'));
+app.use('/admin/api', adminOnly, require('./routes/jobs'));
 
 // SPA fallback — all /admin/* non-API routes serve the app shell
 app.get('/admin/*', requireAuth, requireRole('admin'), (_req, res) => {

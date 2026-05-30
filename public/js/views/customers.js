@@ -342,11 +342,13 @@ async function loadCustomerDocs(customerId) {
             <div class="doc-links">
               <a href="/invoices/${encodeURIComponent(d.filename)}.pdf" target="_blank" class="btn btn-primary btn-sm">PDF</a>
               <a href="/invoices/${encodeURIComponent(d.filename)}.html" target="_blank" class="btn btn-outline btn-sm">View</a>
+              ${d.type === 'proposal' ? `<button class="btn btn-outline btn-sm" onclick="openJobPanel(${customerId}, ${d.id})">🗂 Staff this job</button>` : ''}
               <button class="btn btn-danger btn-sm" onclick="deleteDocument(${d.id}, ${customerId})" title="Delete">🗑</button>
             </div>
           </div>
         `).join('')}
       </div>
+      <div id="jobPanelMount"></div>
     `;
   } catch (e) { /* silent */ }
 }

@@ -54,7 +54,9 @@ function getJobView(database, jobId) {
       a.conflict = false;
     }
   }
-  return { job, visits, assignments, fill: logic.fillStatus(assignments) };
+  // `id` is exposed at the top level (alias of job.id) so callers can use the view
+  // directly as the job handle; `job`/`visits`/`assignments`/`fill` keep the full shape.
+  return { id: job.id, job, visits, assignments, fill: logic.fillStatus(assignments) };
 }
 
 function createJobForDocument(database, { customer_id, document_id }) {

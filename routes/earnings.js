@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../lib/db');
+const { computePayout, HOUSE_CUT } = require('../lib/payout');
 
 // GET /admin/api/earnings?year=2026
 // Returns earnings breakdown: house cut ($5/walk), each walker's take, and Scott's full keeps
@@ -8,9 +9,6 @@ router.get('/earnings', (req, res) => {
   const year = req.query.year || new Date().getFullYear();
   const startDate = `${year}-01-01`;
   const endDate = `${parseInt(year) + 1}-01-01`;
-
-  const HOUSE_CUT = 5;          // original crew: walker keeps rate - $5, house takes $5
-  const CONTRACTOR_PAY = 20;    // 1099 contractor: flat $20/visit, house keeps rate - $20
 
   // Get all appointments for the year (completed + scheduled)
   const appts = db.prepare(`
@@ -53,21 +51,7 @@ router.get('/earnings', (req, res) => {
     }
 
     const isScott = a.employee_id === scottId;
-    // Pay model depends on crew type:
-    //  - Scott (owner): keeps the full rate
-    //  - 1099 contractor: flat $20, house keeps the remainder (rate - $20)
-    //  - original crew: keeps rate - $5, house takes a flat $5
-    let walkerEarning, houseCut;
-    if (isScott) {
-      walkerEarning = rate;
-      houseCut = HOUSE_CUT;
-    } else if (a.crew_type === 'contractor') {
-      walkerEarning = Math.min(rate, CONTRACTOR_PAY);
-      houseCut = Math.max(rate - CONTRACTOR_PAY, 0);
-    } else {
-      walkerEarning = Math.max(rate - HOUSE_CUT, 0);
-      houseCut = HOUSE_CUT;
-    }
+    const { walkerEarning, houseCut } = computePayout({ rate, isScott, crewType: a.crew_type });
 
     if (a.status === 'completed') {
       walkerMap[walkerKey].walks_completed++;

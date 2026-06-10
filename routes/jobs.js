@@ -17,18 +17,28 @@ function getDocVisits(database, documentId) {
   try { return JSON.parse(doc.visits_json); } catch { return []; }
 }
 
+// Convert an ET wall-clock date ('YYYY-MM-DD') + h/min to the true UTC instant,
+// honoring DST. The browser-driven create paths already send correct UTC ISO
+// strings; this is the only server-side wall-clock construction, so it must do
+// the ET->UTC math itself. (The old code appended a literal 'Z' to the local
+// digits, mislabeling ET as UTC — every emailed/rendered time came out 4-5h off.)
+function etWallClockToUtc(date, h, min) {
+  const [y, mo, d] = String(date).split('-').map(Number);
+  const guessUtc = Date.UTC(y, mo - 1, d, h, min, 0); // wall clock read as if UTC
+  const etWall = new Date(guessUtc).toLocaleString('en-US', { timeZone: 'America/New_York' });
+  const offset = guessUtc - new Date(etWall).getTime(); // actual ET offset for this date (DST-aware)
+  return new Date(guessUtc + offset);
+}
+
 // Compute a visit's start/end ISO from its date + "8:00 AM" time string (treated as ET wall-clock).
-// We store the literal local time as ISO without tz math — matches how existing appts are stored/displayed.
 function visitToTimes(date, time) {
   const m = String(time).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   let h = m ? parseInt(m[1], 10) % 12 : 12;
   if (m && /PM/i.test(m[3])) h += 12;
   const min = m ? parseInt(m[2], 10) : 0;
-  const hh = String(h).padStart(2, '0'); const mm = String(min).padStart(2, '0');
-  const start = `${date}T${hh}:${mm}:00.000Z`;
-  const endDate = new Date(`${date}T${hh}:${mm}:00.000Z`);
-  endDate.setUTCMinutes(endDate.getUTCMinutes() + VISIT_MINUTES);
-  return { start_time: start, end_time: endDate.toISOString() };
+  const startDate = etWallClockToUtc(date, h, min);
+  const endDate = new Date(startDate.getTime() + VISIT_MINUTES * 60000);
+  return { start_time: startDate.toISOString(), end_time: endDate.toISOString() };
 }
 
 function getJobView(database, jobId) {

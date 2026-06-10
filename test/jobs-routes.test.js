@@ -102,10 +102,26 @@ test('postJob: each day posts with its OWN walker (not one for all)', () => {
   jobsLogic.setAssignment(db, job.id, '2026-07-17', 2); // Scott
   const result = jobsLogic.postJob(db, job.id);
   const appts = db.prepare('SELECT start_time, employee_id FROM appointments WHERE batch_id=?').all(result.batch_id);
-  const on16 = appts.filter(a => a.start_time.slice(0, 10) === '2026-07-16');
-  const on17 = appts.filter(a => a.start_time.slice(0, 10) === '2026-07-17');
+  // Group by ET calendar date — a 9 PM ET visit is correctly stored as the next
+  // UTC day, so a raw UTC-slice would misgroup it (this is what the old tz bug hid).
+  const etDate = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const on16 = appts.filter(a => etDate(a.start_time) === '2026-07-16');
+  const on17 = appts.filter(a => etDate(a.start_time) === '2026-07-17');
   assert.strictEqual(on16.length, 2);
   assert.ok(on16.every(a => a.employee_id === 6), '16th = Tiffany');
   assert.strictEqual(on17.length, 1);
   assert.strictEqual(on17[0].employee_id, 2, '17th = Scott');
+});
+
+test('visitToTimes converts ET wall-clock to the correct UTC instant (DST-aware)', () => {
+  const fmtET = (iso) => new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+  // Summer (EDT, UTC-4): 11:30 AM ET must store 15:30Z and render back as 11:30 AM ET.
+  const summer = jobsLogic.visitToTimes('2026-06-02', '11:30 AM');
+  assert.strictEqual(summer.start_time, '2026-06-02T15:30:00.000Z', 'EDT 11:30 AM -> 15:30Z');
+  assert.strictEqual(fmtET(summer.start_time), '11:30 AM', 'renders back as 11:30 AM ET');
+  assert.strictEqual(summer.end_time, '2026-06-02T16:00:00.000Z', 'end = +30 min');
+  // Winter (EST, UTC-5): 8:00 AM ET must store 13:00Z.
+  const winter = jobsLogic.visitToTimes('2026-01-15', '8:00 AM');
+  assert.strictEqual(winter.start_time, '2026-01-15T13:00:00.000Z', 'EST 8:00 AM -> 13:00Z');
+  assert.strictEqual(fmtET(winter.start_time), '8:00 AM', 'renders back as 8:00 AM ET');
 });

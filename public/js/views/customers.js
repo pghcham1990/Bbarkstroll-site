@@ -153,6 +153,7 @@ async function loadCustomers() {
               ${clientStatus}
               ${vipBadges}
             </div>
+            ${c.phone ? '<button class="list-edit-btn" onclick="event.stopPropagation();callCustomer(' + c.id + ')" title="Call from the Bark and Stroll number">📞</button>' : ''}
             <button class="list-edit-btn" onclick="event.stopPropagation();openCustomerForm(${c.id})" title="Edit">✏️</button>
           </div>
           <div id="detail-${c.id}" style="display:none"></div>
@@ -247,6 +248,38 @@ async function deleteGift(giftId, customerId) {
   } catch (err) { toast(err.message, 'err'); }
 }
 
+// Click-to-call: rings the owner's cell, then bridges to this client with the B&S caller ID.
+async function callCustomer(id) {
+  try {
+    const r = await api('/customers/' + id + '/call', { method: 'POST' });
+    toast('📞 Calling you now — answer your phone.');
+    showCallDisposition(id, (r && r.name) || 'this client');
+  } catch (e) {
+    toast(e.message || 'Could not place the call', 'error');
+  }
+}
+function showCallDisposition(id, name) {
+  openModal(`
+    <div class="modal-header"><h2>How did the call go?</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>
+    <p style="font-size:.9rem;margin-bottom:.75rem">${esc(name)} — tap what happened. (The line result logs automatically.)</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:.75rem">
+      <button class="btn btn-outline btn-sm" onclick="saveCallDisposition(${id},'Reached them')">📞 Reached them</button>
+      <button class="btn btn-outline btn-sm" onclick="saveCallDisposition(${id},'Left voicemail')">📨 Left voicemail</button>
+      <button class="btn btn-outline btn-sm" onclick="saveCallDisposition(${id},'No answer')">🔕 No answer</button>
+      <button class="btn btn-outline btn-sm" onclick="saveCallDisposition(${id},'Not interested')">🚫 Not interested</button>
+    </div>
+    <textarea id="dispNote" class="note-input" rows="2" placeholder="Optional note…"></textarea>
+    <div class="form-actions" style="margin-top:.5rem"><button class="btn btn-outline" onclick="closeModal()">Skip</button></div>
+  `);
+}
+async function saveCallDisposition(id, disp) {
+  const el = document.getElementById('dispNote');
+  const note = el ? el.value : '';
+  closeModal();
+  try { await api('/customers/' + id + '/disposition', { method: 'POST', body: { disposition: disp, note } }); toast('Logged: ' + disp); }
+  catch (e) { toast(e.message || 'Could not save', 'error'); }
+}
+
 async function toggleCustomer(id, forceOpen) {
   const panel = document.getElementById('detail-' + id);
   if (!panel) return;
@@ -268,7 +301,7 @@ async function toggleCustomer(id, forceOpen) {
       <div class="detail-panel">
         <div class="detail-grid">
           ${c.email ? '<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">' + esc(c.email) + '</span></div>' : ''}
-          ${c.phone ? '<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">' + fmtPhone(c.phone) + '</span></div>' : ''}
+          ${c.phone ? '<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">' + fmtPhone(c.phone) + ' <button class="btn btn-primary btn-sm" style="margin-left:6px;padding:2px 10px" onclick="callCustomer(' + c.id + ')" title="Call this client from the Bark & Stroll number — your phone rings, then it connects them">📞 Call</button></span></div>' : ''}
           ${c.address ? '<div class="detail-row full-width"><span class="detail-label">Address</span><span class="detail-value">' + esc(c.address) + '</span></div>' : ''}
           ${c.rate != null ? '<div class="detail-row"><span class="detail-label">Rate</span><span class="detail-value" style="color:var(--gold);font-weight:700">$' + Number(c.rate).toFixed(2) + '</span></div>' : ''}
         </div>

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../lib/db');
+// Shared secret for the localhost-only Twilio click-call endpoint (defense in depth).
+let _callToken = ''; try { const m = require('fs').readFileSync('/opt/twilio-voice/.secrets', 'utf8').match(/^INTERNAL_CALL_TOKEN=(.*)$/m); _callToken = m ? m[1].trim() : ''; } catch (_) {}
 
 // Which gallery photo is this client's avatar (null = colored initial). Set on gallery upload.
 try { db.prepare('ALTER TABLE customers ADD COLUMN avatar_photo_id INTEGER').run(); } catch (e) { /* already exists */ }
@@ -228,6 +230,37 @@ router.delete('/dogs/:id', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Click-to-call: log an outbound note, then ring the owner and bridge to this client
+// (with the Bark & Stroll caller ID) via the localhost-only voice service.
+router.post('/customers/:id/call', (req, res) => {
+  const c = db.prepare('SELECT id, first_name, last_name, phone FROM customers WHERE id = ?').get(req.params.id);
+  if (!c) return res.status(404).json({ error: 'customer not found' });
+  if (!c.phone) return res.status(400).json({ error: 'no phone number on file' });
+  const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'this client';
+  const when = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+  let noteId = null;
+  try { noteId = db.prepare('INSERT INTO customer_notes (customer_id, text) VALUES (?, ?)').run(c.id, `Outbound call placed to ${name} on ${when} ET (click-to-call).`).lastInsertRowid; } catch (e) {}
+  fetch('http://127.0.0.1:8120/internal/click-call', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Internal-Token': _callToken },
+    body: JSON.stringify({ business: 'barkstroll', to: c.phone, name, noteId }),
+  }).then(r => r.json()).then(j => res.json({ ...j, name })).catch(() => res.status(502).json({ error: 'call service unavailable' }));
+});
+
+// Quick post-call disposition (the hybrid's manual half) — logs a note on the client.
+router.post('/customers/:id/disposition', (req, res) => {
+  const c = db.prepare('SELECT id FROM customers WHERE id = ?').get(req.params.id);
+  if (!c) return res.status(404).json({ error: 'customer not found' });
+  const disp = String(req.body.disposition || '').slice(0, 60);
+  const note = String(req.body.note || '').slice(0, 1000);
+  if (!disp) return res.status(400).json({ error: 'disposition required' });
+  const body = `📞 ${disp}` + (note ? ` — ${note}` : '');
+  try {
+    db.prepare('INSERT INTO customer_notes (customer_id, text) VALUES (?, ?)').run(c.id, body);
+    db.prepare("UPDATE customers SET updated_at = datetime('now') WHERE id = ?").run(c.id);
+  } catch (e) {}
+  res.json({ ok: true });
 });
 
 module.exports = router;

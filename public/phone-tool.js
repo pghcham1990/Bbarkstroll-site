@@ -24,7 +24,7 @@
   function rowHtml(r){
     const st=(r.status||'initiated');
     return `<div class="pt-row" data-id="${r.id}">
-      <span class="pt-dir">${dirIcon(r.direction)}</span>
+      <span class="pt-dir ${r.direction==='outbound'?'pt-out':''}">${dirIcon(r.direction)}</span>
       <div class="pt-rmeta">
         <div class="pt-rwho">${esc(r.counterparty_name || fmtNum(r.counterparty_number))}</div>
         <div class="pt-rsub">${esc(r.counterparty_name?fmtNum(r.counterparty_number):'')}${r.duration_sec?` · ${fmtDur(r.duration_sec)}`:''}${r.outcome?` · ${esc(r.outcome)}`:''}</div>
@@ -71,15 +71,15 @@
     async function refreshNeeds(){
       const el = container.querySelector('#ptNeeds');
       let rows = []; try { rows = await adapter.listNeedsYou() || []; } catch(_) {}
-      if (!rows.length) { el.innerHTML = `<h3>Needs you</h3><div class="pt-needs-empty">All clear — no missed calls or voicemails to handle. ✓</div>`; return; }
-      el.innerHTML = `<h3>Needs you (${rows.length})</h3>` + rows.map(r => `
-        <div class="pt-row" data-needs="${r.id}">
+      if (!rows.length) { el.innerHTML = `<h3>Needs you</h3><div class="pt-needs-empty"><span class="pt-tick">✓</span> All clear — no missed calls or voicemails to handle.</div>`; return; }
+      el.innerHTML = `<h3>Needs you <span class="pt-pill">${rows.length}</span></h3>` + rows.map(r => `
+        <div class="pt-needs-row" data-needs="${r.id}">
           <span class="pt-dir">${dirIcon(r.direction)}</span>
           <div class="pt-rmeta">
             <div class="pt-rwho">${esc(r.counterparty_name || fmtNum(r.counterparty_number))}</div>
             <div class="pt-rsub">${esc(r.status)}${r.voicemail_transcript?` · "${esc(r.voicemail_transcript.slice(0,80))}"`:''}</div>
           </div>
-          <button class="pt-save" data-handled="${r.id}">Mark handled</button>
+          <button class="pt-mark" data-handled="${r.id}">Mark handled</button>
         </div>`).join('');
       el.querySelectorAll('[data-handled]').forEach(b => b.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -98,7 +98,7 @@
         let ex = rowEl.nextElementSibling;
         if (ex && ex.classList.contains('pt-expand')) { ex.remove(); return; }
         ex = document.createElement('div'); ex.className = 'pt-expand';
-        ex.innerHTML = `${r.voicemail_transcript?`<div><b>Voicemail:</b> ${esc(r.voicemail_transcript)}</div>`:''}
+        ex.innerHTML = `${r.voicemail_transcript?`<div class="pt-vm"><b>Voicemail:</b> ${esc(r.voicemail_transcript)}</div>`:''}
           <textarea placeholder="Outcome / note…">${esc(r.outcome||'')}</textarea>
           <button class="pt-save">Save outcome</button>`;
         ex.querySelector('.pt-save').addEventListener('click', async () => {

@@ -15,7 +15,8 @@ const PAGE_TITLES = {
   messages: 'Messages',
   reports: 'Reports',
   pricing: 'Pricing Sheet',
-  applicants: 'Applicants'
+  applicants: 'Applicants',
+  phone: 'Phone'
 };
 
 /* --- API helper --- */

@@ -419,6 +419,7 @@ app.use('/admin/api', adminOnly, require('./routes/applicants'));
 app.use('/admin/api', adminOnly, require('./routes/content'));
 app.use('/admin/api', adminOnly, require('./routes/employee-documents'));
 app.use('/admin/api', adminOnly, require('./routes/jobs'));
+app.use('/admin/api', adminOnly, require('./routes/phone'));
 
 // SPA fallback — all /admin/* non-API routes serve the app shell
 app.get('/admin/*', requireAuth, requireRole('admin'), (_req, res) => {

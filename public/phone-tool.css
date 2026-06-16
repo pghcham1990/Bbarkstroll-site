@@ -71,6 +71,19 @@
 .pt-coach-tx summary{ cursor:pointer; color:var(--pt-muted,#6b7280); font-size:.82rem; }
 .pt-coach-tx pre{ white-space:pre-wrap; font-size:.8rem; max-height:240px; overflow:auto; background:var(--pt-bg,#f4f6f9); padding:.4rem; border-radius:6px; }
 
+/* CRM suggestions */
+.pt-sg-card{ margin-top:.5rem; background:rgba(0,0,0,.03); border:1px solid rgba(0,0,0,.08); border-radius:8px; padding:.6rem .75rem; font-size:.85rem; }
+.pt-sg-h{ font-weight:600; margin-bottom:.4rem; }
+.pt-sg-row{ display:flex; gap:.5rem; align-items:flex-start; justify-content:space-between; padding:.3rem 0; border-top:1px solid rgba(0,0,0,.06); }
+.pt-sg-row:first-of-type{ border-top:none; }
+.pt-sg-main{ flex:1; min-width:0; }
+.pt-sg-conf{ opacity:.6; font-size:.78rem; }
+.pt-sg-ev{ opacity:.7; font-style:italic; font-size:.8rem; margin-top:.15rem; }
+.pt-sg-act{ display:flex; gap:.3rem; flex:none; }
+.pt-sg-yes,.pt-sg-no{ border:none; border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:.95rem; }
+.pt-sg-yes{ background:#1f9d55; color:#fff; } .pt-sg-no{ background:#e2e8f0; }
+.pt-sg-done{ font-size:.8rem; opacity:.75; flex:none; } .pt-sg-accepted{ color:#1f9d55; }
+
 /* Toast */
 .pt-toast { position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(8px); background:#1b1d24; color:#fff; padding:12px 20px; border-radius:10px; font-size:14px; font-weight:500; z-index:99999; opacity:0; pointer-events:none; transition:opacity .22s, transform .22s; box-shadow:0 8px 30px rgba(0,0,0,.28); }
 .pt-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }

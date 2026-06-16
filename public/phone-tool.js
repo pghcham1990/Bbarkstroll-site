@@ -6,6 +6,8 @@
 //   dial(number, name, coach): Promise<{ok,sid}|{error}>  // coach = bool, record + AI-coach this call
 //   setOutcome(id, {outcome,note}): Promise<{ok}|{error}>
 //   getCoaching(id): Promise<{transcript, coaching}>       // optional; coaching = parsed object or null
+//   getSuggestions(callSid): Promise<suggestion[]>         // optional; AI-proposed CRM updates for a coached call
+//   decideSuggestion(id, decision): Promise               // optional; decision = 'accept' | 'reject'
 // }
 // row = call_log shape (direction, counterparty_number/name, status, duration_sec,
 //        voicemail_transcript, outcome, started_at, id).
@@ -31,6 +33,21 @@
       ${co.suggested_followup?`<div class="pt-coach-sec"><b>Follow-up:</b> ${esc(co.suggested_followup)}</div>`:''}
       ${c.transcript?`<details class="pt-coach-tx"><summary>Transcript</summary><pre>${esc(c.transcript)}</pre></details>`:''}
     </div>`;
+  }
+
+  function renderSuggestions(list){
+    if (!list || !list.length) return '';
+    const pending = list.filter(s => s.status === 'pending');
+    const rows = list.map(s => {
+      const old = s.old_value ? `${esc(s.old_value)} → ` : '';
+      const conf = s.confidence != null ? ` <span class="pt-sg-conf">${Math.round(s.confidence*100)}%</span>` : '';
+      const ev = s.evidence ? `<div class="pt-sg-ev">“${esc(s.evidence)}”</div>` : '';
+      const buttons = s.status === 'pending'
+        ? `<span class="pt-sg-act"><button class="pt-sg-yes" data-sg="${s.id}" data-d="accept">✓</button><button class="pt-sg-no" data-sg="${s.id}" data-d="reject">✗</button></span>`
+        : `<span class="pt-sg-done pt-sg-${esc(s.status)}">${s.status==='accepted'?'✓ saved':'✗ dismissed'}</span>`;
+      return `<div class="pt-sg-row"><div class="pt-sg-main"><b>${esc(s.field)}</b>: ${old}${esc(s.new_value)}${conf}${ev}</div>${buttons}</div>`;
+    }).join('');
+    return `<div class="pt-sg-card"><div class="pt-sg-h">📝 Suggested CRM updates${pending.length?` (${pending.length})`:''}</div>${rows}</div>`;
   }
 
   function toast(msg){
@@ -133,6 +150,18 @@
           await adapter.setOutcome(id, { outcome: ex.querySelector('textarea').value.trim() });
           toast('Saved'); ex.remove(); refreshLog(); refreshNeeds();
         });
+        if (r.coach_requested && adapter.getSuggestions) {
+          const host = document.createElement('div'); host.className = 'pt-sg-host'; ex.appendChild(host);
+          const loadSugg = () => adapter.getSuggestions(r.call_sid).then(list => {
+            host.innerHTML = renderSuggestions(list);
+            host.querySelectorAll('[data-sg]').forEach(b => b.addEventListener('click', async (e) => {
+              e.stopPropagation(); b.disabled = true;
+              await adapter.decideSuggestion(b.dataset.sg, b.dataset.d);
+              loadSugg();
+            }));
+          }).catch(() => {});
+          loadSugg();
+        }
         rowEl.after(ex);
       }));
     }

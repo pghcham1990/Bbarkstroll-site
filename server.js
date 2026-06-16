@@ -423,6 +423,7 @@ app.use('/admin/api', adminOnly, require('./routes/phone'));
 
 // SPA fallback — all /admin/* non-API routes serve the app shell
 app.get('/admin/*', requireAuth, requireRole('admin'), (_req, res) => {
+  res.set('Cache-Control', 'no-cache');  // always revalidate so portal/CSS updates land
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 

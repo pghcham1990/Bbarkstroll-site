@@ -143,7 +143,7 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
     });
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: getSystemPrompt(type),
       messages
@@ -151,7 +151,7 @@ router.post('/documents/generate', requireRole('admin'), async (req, res) => {
 
     try {
       require('/opt/shared/llm-usage').createUsageLog('/opt/shared/llm-usage.db').record({
-        app: 'barkstroll', model: 'claude-sonnet-4-20250514', kind: 'bs_document', source: 'anthropic',
+        app: 'barkstroll', model: 'claude-sonnet-4-6', kind: 'bs_document', source: 'anthropic',
         input_tokens: response.usage && response.usage.input_tokens,
         output_tokens: response.usage && response.usage.output_tokens,
       });

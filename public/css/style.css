@@ -1124,6 +1124,15 @@ body.admin-app::after {
   .team-grid { grid-template-columns: 1fr }
 }
 
+/* Touch-landscape (phone/iPad sideways): keep the hamburger + bottom bar, let content fill the width (roomy desktop grids, no squish) */
+@media (pointer:coarse) and (orientation:landscape) {
+  .sidebar { position: fixed; left: 0; top: 0; transform: translateX(-100%); z-index: 300; }
+  .sidebar.open { transform: translateX(0); }
+  .menu-toggle { display: flex !important; }
+  .admin-app .bottomnav { display: flex !important; }
+  .admin-app .content { max-width: none; padding: 1rem 1.5rem; padding-bottom: 72px; }
+}
+
 @media (max-width: 400px) {
   .dash-stat { padding: .85rem .75rem }
   .form-row { flex-direction: column; gap: 0 }

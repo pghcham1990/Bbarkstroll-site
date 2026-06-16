@@ -7,7 +7,8 @@ async function render_phone(el) {
   mountPhoneTool(document.getElementById('phoneToolMount'), {
     listCalls:    () => api('/phone/calls').catch(() => []),
     listNeedsYou: () => api('/phone/needs-you').catch(() => []),
-    dial:         (to, name) => api('/phone/dial', { method: 'POST', body: { to, name } }),
+    dial:         (to, name, coach) => api('/phone/dial', { method: 'POST', body: { to, name, coach } }),
+    getCoaching:  (id) => api('/phone/calls/' + id + '/coaching').catch(() => null),
     setOutcome:   (id, patch) => api('/phone/calls/' + id + '/outcome', { method: 'POST', body: { outcome: patch.outcome, note: patch.note } }),
   });
 }

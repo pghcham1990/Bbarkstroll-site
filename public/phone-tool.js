@@ -3,8 +3,9 @@
 // adapter = {
 //   listCalls():        Promise<row[]>
 //   listNeedsYou():     Promise<row[]>
-//   dial(number, name): Promise<{ok,sid}|{error}>
+//   dial(number, name, coach): Promise<{ok,sid}|{error}>  // coach = bool, record + AI-coach this call
 //   setOutcome(id, {outcome,note}): Promise<{ok}|{error}>
+//   getCoaching(id): Promise<{transcript, coaching}>       // optional; coaching = parsed object or null
 // }
 // row = call_log shape (direction, counterparty_number/name, status, duration_sec,
 //        voicemail_transcript, outcome, started_at, id).
@@ -14,6 +15,23 @@
   function fmtDur(n){ n=parseInt(n,10)||0; return n>=60?`${Math.floor(n/60)}m ${n%60}s`:`${n}s`; }
   function fmtTime(s){ try{ return new Date((s||'').replace(' ','T')+'Z').toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(_){ return s||''; } }
   function dirIcon(d){ return d==='outbound' ? '↗' : '↘'; }
+
+  function renderCoaching(c){
+    if (!c || !c.coaching) return '<span class="pt-coach-pending">No coaching available.</span>';
+    const co = c.coaching;
+    const obj = (co.objections||[]).map(o => `<li><b>They said:</b> ${esc(o.they_said)}<br><b>You:</b> ${esc(o.how_scott_handled)}<br><b>Try:</b> ${esc(o.better_response)}</li>`).join('');
+    const closing = co.closing ? `${co.closing.attempted?('Closed — '+esc(co.closing.technique||'')):'No close attempted'} · Next: ${esc(co.closing.what_to_try_next||'')}` : '';
+    return `<div class="pt-coach-card">
+      <div class="pt-coach-h">🎙️ Sales coaching</div>
+      <div class="pt-coach-sum">${esc(co.summary||'')}</div>
+      ${obj?`<div class="pt-coach-sec"><b>Objections</b><ul>${obj}</ul></div>`:''}
+      ${closing?`<div class="pt-coach-sec"><b>Closing:</b> ${closing}</div>`:''}
+      ${(co.did_well||[]).length?`<div class="pt-coach-sec"><b>Did well:</b> ${co.did_well.map(esc).join('; ')}</div>`:''}
+      ${(co.improve||[]).length?`<div class="pt-coach-sec"><b>Improve:</b> ${co.improve.map(esc).join('; ')}</div>`:''}
+      ${co.suggested_followup?`<div class="pt-coach-sec"><b>Follow-up:</b> ${esc(co.suggested_followup)}</div>`:''}
+      ${c.transcript?`<details class="pt-coach-tx"><summary>Transcript</summary><pre>${esc(c.transcript)}</pre></details>`:''}
+    </div>`;
+  }
 
   function toast(msg){
     let t=document.querySelector('.pt-toast');
@@ -30,6 +48,7 @@
         <div class="pt-rsub">${esc(r.counterparty_name?fmtNum(r.counterparty_number):'')}${r.duration_sec?` · ${fmtDur(r.duration_sec)}`:''}${r.outcome?` · ${esc(r.outcome)}`:''}</div>
       </div>
       <span class="pt-badge pt-b-${esc(st)}">${esc(st)}</span>
+      ${r.coach_requested?`<span class="pt-mic" title="Recorded + coached">🎙️</span>`:''}
       <span class="pt-rtime">${esc(fmtTime(r.started_at))}</span>
     </div>`;
   }
@@ -42,6 +61,7 @@
           <input class="pt-display" id="ptDisplay" placeholder="Enter a number" inputmode="tel">
           <input class="pt-name" id="ptName" placeholder="Name (optional, for the log)">
           <div class="pt-keys">${['1','2','3','4','5','6','7','8','9','*','0','#'].map(k=>`<button class="pt-key" data-k="${k}">${k}</button>`).join('')}</div>
+          <label class="pt-coach"><input type="checkbox" id="ptCoach"> 🎙️ Record + coach this call</label>
           <div class="pt-actions">
             <button class="pt-back" id="ptBack" title="delete">⌫</button>
             <button class="pt-call" id="ptCall">Call</button>
@@ -61,8 +81,9 @@
       if (String(num).replace(/\D/g,'').length < 10) { toast('Enter a 10-digit number'); return; }
       callBtn.disabled = true; callBtn.textContent = 'Ringing…';
       try {
-        const r = await adapter.dial(num, nameEl.value.trim());
-        if (r && r.ok) { toast('Your phone is ringing — pick up to connect'); display.value=''; nameEl.value=''; setTimeout(refreshLog, 1500); }
+        const coachEl = container.querySelector('#ptCoach');
+        const r = await adapter.dial(num, nameEl.value.trim(), coachEl ? coachEl.checked : false);
+        if (r && r.ok) { toast('Your phone is ringing — pick up to connect'); display.value=''; nameEl.value=''; if (coachEl) coachEl.checked = false; setTimeout(refreshLog, 1500); }
         else { toast((r && r.error) || 'Call failed'); }
       } catch (_) { toast('Call service unavailable'); }
       finally { callBtn.disabled = false; callBtn.textContent = 'Call'; }
@@ -99,8 +120,15 @@
         if (ex && ex.classList.contains('pt-expand')) { ex.remove(); return; }
         ex = document.createElement('div'); ex.className = 'pt-expand';
         ex.innerHTML = `${r.voicemail_transcript?`<div class="pt-vm"><b>Voicemail:</b> ${esc(r.voicemail_transcript)}</div>`:''}
+          ${r.coach_requested?`<div class="pt-coaching" data-coach="${r.id}">${r.coach_status==='coached'?'Loading coaching…':`<span class="pt-coach-pending">🎙️ Recording ${esc(r.coach_status||'pending')} — coaching will appear here.</span>`}</div>`:''}
           <textarea placeholder="Outcome / note…">${esc(r.outcome||'')}</textarea>
           <button class="pt-save">Save outcome</button>`;
+        if (r.coach_requested && r.coach_status === 'coached' && adapter.getCoaching) {
+          adapter.getCoaching(id).then(c => {
+            const box = ex.querySelector('.pt-coaching'); if (!box) return;
+            box.innerHTML = renderCoaching(c);
+          }).catch(() => {});
+        }
         ex.querySelector('.pt-save').addEventListener('click', async () => {
           await adapter.setOutcome(id, { outcome: ex.querySelector('textarea').value.trim() });
           toast('Saved'); ex.remove(); refreshLog(); refreshNeeds();

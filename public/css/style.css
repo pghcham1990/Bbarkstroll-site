@@ -10,27 +10,29 @@
   --forest: #14613a;
   --forest-deep: #0d4428;
   --forest-dark: #071a10;
-  --sage: #e8f0e6;
-  --cream: #faf8f4;
-  --gold: #c4a44e;
+  --sage: #e6efe3;          /* refined: slightly cooler, less yellow-tint sage */
+  --cream: #faf7f1;         /* refined: a touch warmer paper tone */
+  --gold: #c19a3e;          /* refined: deeper, richer brass — reads as intentional accent, not pale */
+  --gold-soft: #d9b85a;     /* lighter gold for highlights/hover */
   --white: #ffffff;
-  --text: #2a2a28;
-  --text-soft: #5a5a56;
+  --text: #232321;         /* refined: a hair deeper for crisper reading */
+  --text-soft: #58584f;
   --danger: #c0392b;
   --danger-bg: rgba(192,57,43,.06);
-  --radius: 16px;
-  --radius-sm: 10px;
+  --radius: 18px;          /* refined: softer, friendlier card corners */
+  --radius-sm: 11px;
 
   /* Glass tokens (admin — light theme) */
-  --glass: rgba(255,255,255,0.52);
-  --glass-hover: rgba(255,255,255,0.7);
-  --glass-border: rgba(20,97,58,0.07);
-  --glass-border-hover: rgba(20,97,58,0.14);
-  --glass-blur: blur(24px);
-  --g-text: #2a2a28;
-  --g-text-sec: #5a5a56;
-  --g-text-muted: #8a8a84;
-  --shadow-glass: 0 4px 24px rgba(13,68,40,0.06);
+  --glass: rgba(255,255,255,0.58);
+  --glass-hover: rgba(255,255,255,0.76);
+  --glass-border: rgba(20,97,58,0.09);
+  --glass-border-hover: rgba(20,97,58,0.18);
+  --glass-blur: blur(26px) saturate(1.15);
+  --g-text: #232321;
+  --g-text-sec: #58584f;
+  --g-text-muted: #8a8a82;
+  /* layered, softer-but-deeper elevation */
+  --shadow-glass: 0 1px 2px rgba(13,68,40,0.04), 0 8px 28px rgba(13,68,40,0.07);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --sidebar-w: 260px;
 }
@@ -1664,3 +1666,313 @@ body.admin-app::after {
 .price-note { font-size: 11.5px; color: var(--text-soft); margin-top: 2px; }
 .mix-pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; color: var(--text); background: rgba(20,97,58,.06); border: 1px solid var(--glass-border); }
 .mix-pill b { color: var(--forest); }
+
+/* =====================================================
+   VISUAL POLISH PASS — 2026-06-17 (additive, CSS-only)
+   Targets ONLY pre-existing selectors. No DOM/JS/text changed.
+   Goal: elevate craft of the existing forest/cream/gold glass
+   admin while keeping its warm, neighborly personality.
+   Fonts kept: DM Serif Display (display) + DM Sans (body) —
+   already linked in app.html; refined here via scale/weight/tracking.
+   ===================================================== */
+
+/* --- Type refinement: warmer body rhythm, crisper display headings --- */
+body {
+  letter-spacing: .005em;
+}
+/* Display serif headings get optical tightening + a hint more weight presence */
+.section-title,
+.card-title,
+.main-header-title,
+.dash-greeting,
+.cal-nav h2,
+.modal-header h2,
+.glass-panel-title,
+.sidebar-name,
+.cal-day-label {
+  letter-spacing: -.012em;
+  font-feature-settings: "liga" 1, "kern" 1;
+}
+.dash-greeting { line-height: 1.12; }
+/* Uppercase micro-labels: tighten color + a touch more air so they read as deliberate eyebrows */
+.section-label,
+.dash-stat-label,
+.stat-label,
+.detail-label,
+.detail-section-title,
+.earnings-section-label,
+.cal-upcoming-label { font-weight: 700; }
+.admin-app .section-label,
+.admin-app .earnings-section-label,
+.admin-app .cal-upcoming-label { color: var(--gold); }
+
+/* --- Surfaces & elevation: layered, softer depth on the glass cards --- */
+.admin-app .card,
+.admin-app .stat-card,
+.dash-stat,
+.glass-panel,
+.team-card {
+  box-shadow: var(--shadow-glass);
+  transition: transform .25s var(--ease), box-shadow .25s var(--ease),
+              border-color .25s var(--ease), background .25s var(--ease);
+}
+.admin-app .card:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: 0 2px 4px rgba(13,68,40,0.05), 0 14px 38px rgba(13,68,40,0.10);
+  transform: translateY(-1px);
+}
+/* Glass panel header gets a faint warm wash so sections feel composed */
+.glass-panel-header {
+  background: linear-gradient(180deg, rgba(20,97,58,0.035), rgba(20,97,58,0));
+}
+
+/* --- Sidebar: richer brand gradient + crisper active state --- */
+.sidebar {
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(196,154,62,0.10), transparent 55%),
+    linear-gradient(180deg, #0d4428 0%, #14613a 62%, #105234 100%);
+  box-shadow: inset -1px 0 0 rgba(0,0,0,0.18);
+}
+.sidebar-link { transition: color .2s var(--ease), background .2s var(--ease),
+                            border-left-color .2s var(--ease), transform .12s var(--ease); }
+.sidebar-link:hover { transform: translateX(1px); }
+.sidebar-link.active {
+  background: linear-gradient(90deg, rgba(196,154,62,0.18), rgba(255,255,255,0.06));
+  box-shadow: inset 0 0 0 1px rgba(196,154,62,0.12);
+}
+.sidebar-name { letter-spacing: .005em; }
+.sidebar-avatar {
+  background: linear-gradient(135deg, rgba(196,154,62,0.22), rgba(196,154,62,0.10));
+  border-color: rgba(196,154,62,0.4);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  color: var(--gold-soft);
+}
+
+/* --- Buttons: more finished primary, snappier press feedback --- */
+.btn { transition: transform .12s var(--ease), background .2s var(--ease),
+                   box-shadow .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease); }
+.admin-app .btn-primary {
+  background: linear-gradient(180deg, var(--forest) 0%, var(--forest-deep) 100%);
+  box-shadow: 0 1px 2px rgba(13,68,40,0.25), 0 4px 14px rgba(20,97,58,0.22);
+}
+.admin-app .btn-primary:hover {
+  box-shadow: 0 2px 4px rgba(13,68,40,0.28), 0 8px 22px rgba(20,97,58,0.30);
+  transform: translateY(-1px);
+}
+.btn-primary:active,
+.admin-app .btn-primary:active { transform: translateY(0); }
+.btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* --- FAB: warmer shadow + accessible focus --- */
+.admin-app .fab:focus-visible { outline: 3px solid rgba(196,154,62,0.6); outline-offset: 3px; }
+
+/* --- Inputs: cleaner finish + a soft brand focus ring --- */
+.admin-app .search-box input,
+.admin-app .form-group input,
+.admin-app .form-group select,
+.admin-app .form-group textarea {
+  transition: border-color .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease);
+  border-radius: 10px;
+}
+.admin-app .search-box input:focus,
+.admin-app .form-group input:focus,
+.admin-app .form-group select:focus,
+.admin-app .form-group textarea:focus {
+  border-color: var(--forest);
+  box-shadow: 0 0 0 3px rgba(20,97,58,0.12);
+  background: #fff;
+}
+
+/* --- Stat / dashboard tiles: gold numeral accent + leading icon depth --- */
+.dash-stat-icon { box-shadow: inset 0 0 0 1px rgba(20,97,58,0.05); }
+.admin-app .stat-num,
+.dash-stat-num { letter-spacing: -.015em; }
+
+/* --- Lists: gentle, intentional hover lift --- */
+.admin-app .list-item { transition: transform .2s var(--ease), box-shadow .2s var(--ease),
+                                     border-color .2s var(--ease), background .2s var(--ease); }
+.list-badge,
+.dog-tag { font-weight: 700; letter-spacing: .01em; }
+
+/* --- Calendar: selected day gets soft brand glow; today reads warmer --- */
+.admin-app .cal-day { transition: background .15s var(--ease), color .15s var(--ease),
+                                  transform .12s var(--ease), box-shadow .15s var(--ease); }
+.admin-app .cal-day.selected {
+  box-shadow: 0 3px 12px rgba(20,97,58,0.30);
+}
+.admin-app .cal-day.today:not(.selected) {
+  box-shadow: inset 0 0 0 1px rgba(20,97,58,0.18);
+}
+.cal-dot { box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
+
+/* --- Weather widget: subtle depth + readable gold high --- */
+.weather-widget {
+  background:
+    radial-gradient(130% 120% at 100% 0%, rgba(196,154,62,0.16), transparent 55%),
+    linear-gradient(135deg, var(--forest) 0%, var(--forest-deep) 100%);
+  box-shadow: 0 1px 2px rgba(13,68,40,0.18), 0 10px 30px rgba(13,68,40,0.18);
+}
+.weather-hi { color: var(--gold-soft); }
+
+/* --- Modal: a touch more lift so it floats clearly above the glass --- */
+.admin-app .modal-sheet {
+  box-shadow: 0 24px 70px rgba(13,68,40,0.18), 0 2px 8px rgba(13,68,40,0.08);
+}
+
+/* --- Toasts: rounder, friendlier --- */
+.toast { border-radius: 12px; }
+
+/* --- Honor reduced-motion: keep transitions calm for those who ask --- */
+@media (prefers-reduced-motion: reduce) {
+  .admin-app .card,
+  .admin-app .stat-card,
+  .dash-stat,
+  .team-card,
+  .admin-app .list-item,
+  .sidebar-link,
+  .btn,
+  .admin-app .fab,
+  .admin-app .cal-day { transition: none !important; }
+}
+/* ===== end visual polish pass ===== */
+
+
+/* =====================================================
+   VISUAL POLISH — ROUND 2 — 2026-06-17 (additive, CSS-only)
+   Builds ON round 1 (do not undo it). Goal: CALMER + CLEARER.
+   Cognitive/UX principles applied (owner's explicit goals):
+     1. First-impression simplicity — more whitespace, quieter noise
+     2. Hierarchy & F-flow — ONE hero (the greeting), step everything down
+     3. Reserve the action color — brass demoted from decorative use,
+        concentrated on the single primary action (the Add FAB) + active nav
+     4. Gestalt — tighter groups, even gutters, tabular figures
+     5. Aesthetic-usability — smooth hover/focus, warmer empty states
+   Targets ONLY selectors that ALREADY EXIST. No DOM/JS/text changed.
+   ===================================================== */
+
+/* ---------------------------------------------------------------
+   1 + 2.  HERO & TYPE SCALE
+   The "Good evening, Scott" greeting is the single visual hero:
+   biggest, highest-contrast ink. Everything else steps down.
+   --------------------------------------------------------------- */
+.admin-app .dash-greeting {
+  font-size: 2.3rem;            /* up from 1.75rem — clear #1 of the page */
+  color: var(--g-text);         /* full ink, max contrast */
+  line-height: 1.08;
+}
+/* The date becomes a quiet eyebrow above the hero (faint, deliberate) */
+.admin-app .dash-date {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--g-text-muted);   /* demoted to faint tier */
+  margin-bottom: .45rem;
+}
+/* More air beneath the hero so the screen opens with breathing room */
+.dash-welcome { margin-bottom: 2.25rem; margin-top: .25rem; }
+
+/* Panel/section titles sit a clear step BELOW the hero, not beside it */
+.admin-app .glass-panel-title { font-size: 1.12rem; }
+.admin-app .section-title { font-size: 1.2rem; }
+/* Stat numbers are secondary heroes — confident but below the greeting */
+.admin-app .dash-stat-num { font-size: 1.7rem; line-height: 1.05; }
+
+/* ---------------------------------------------------------------
+   3.  RESERVE THE ACTION COLOR (the #1 fix)
+   Brand forest stays dominant. Brass is the ONE energy/action color.
+   Demote DECORATIVE brass (eyebrow labels) to a quiet muted ink so
+   the eye stops getting pulled to non-actionable text.
+   --------------------------------------------------------------- */
+.admin-app .section-label,
+.admin-app .earnings-section-label,
+.admin-app .cal-upcoming-label {
+  color: var(--g-text-muted);   /* was gold — now quiet; brass is for acting, not labelling */
+}
+/* Reserve brass for THE primary action: the Add FAB (the single
+   "create" gesture on the page). Brand forest still leads everywhere
+   else; this is the one high-energy "act here" beacon. */
+.admin-app .fab {
+  background: linear-gradient(180deg, var(--gold-soft) 0%, var(--gold) 100%);
+  color: var(--forest-dark);
+  box-shadow: 0 2px 8px rgba(193,154,62,0.30), 0 8px 24px rgba(193,154,62,0.28);
+}
+.admin-app .fab:hover {
+  background: linear-gradient(180deg, #e3c469 0%, var(--gold-soft) 100%);
+  box-shadow: 0 4px 12px rgba(193,154,62,0.36), 0 10px 30px rgba(193,154,62,0.34);
+}
+/* Active nav keeps its brass cue (it signals "where you are" = an anchor,
+   which is allowed); make it read crisp rather than washed. */
+.sidebar-link.active { color: var(--gold-soft); }
+
+/* ---------------------------------------------------------------
+   4.  GESTALT — even gutters, locked figures, tighter groups
+   --------------------------------------------------------------- */
+/* Tabular numerals so every figure lines up on a baseline grid */
+.admin-app .dash-stat-num,
+.admin-app .stat-num,
+.admin-app .appt-time,
+.earnings-amount,
+.earnings-walks,
+.spend-num,
+.weather-temp,
+.weather-hi,
+.weather-lo,
+.weather-rain { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+/* Even gutters between the three dashboard tiles + a touch more room */
+.dash-stats { gap: 1rem; margin-bottom: 2rem; }
+.admin-app .dash-stat { gap: 1rem; padding: 1.25rem 1.15rem; }
+
+/* Group the stat numeral + its label as one tight unit (kill the gap
+   between a big number and the caption that belongs to it) */
+.admin-app .dash-stat-label { margin-top: .15rem; }
+
+/* ---------------------------------------------------------------
+   1.  WHITESPACE — let dense areas breathe
+   --------------------------------------------------------------- */
+.admin-app .glass-panel { margin-bottom: 1.5rem; }
+.admin-app .glass-panel-header { padding: 1.1rem 1.35rem; }
+.admin-app .glass-panel-body { padding: 1.25rem 1.35rem; }
+/* Today's Schedule rows: more vertical rhythm so the list isn't cramped */
+.admin-app .appt-card { padding: .85rem 1rem; margin-bottom: .55rem; }
+.admin-app .appt-sub { margin-top: .2rem; line-height: 1.4; }
+/* Earnings rows: a hair more height for a calmer ledger */
+.earnings-row { padding: .7rem .85rem; }
+
+/* ---------------------------------------------------------------
+   5.  WARMER EMPTY STATES + AESTHETIC-USABILITY
+   --------------------------------------------------------------- */
+.admin-app .empty { padding: 3.25rem 1rem; color: var(--g-text-sec); }
+.admin-app .empty-icon {
+  font-size: 2.75rem;
+  margin-bottom: .65rem;
+  opacity: .9;
+  filter: saturate(.92);
+}
+.admin-app .empty-text {
+  font-size: .9rem;
+  color: var(--g-text-sec);
+  letter-spacing: .005em;
+}
+/* The dashboard's inline "No walks scheduled today" sits inside a panel —
+   give it a friendly, settled feel rather than a void */
+.admin-app .glass-panel-body .empty { padding: 2.5rem 1rem; }
+
+/* Consistent, smooth hover/focus everywhere the eye lands */
+.admin-app .glass-panel-header .btn-primary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.admin-app .appt-card { transition: transform .2s var(--ease), box-shadow .2s var(--ease),
+                                    background .2s var(--ease), border-color .2s var(--ease); }
+
+/* ---------------------------------------------------------------
+   Mobile: keep the hero strong but proportional on small screens
+   --------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .admin-app .dash-greeting { font-size: 1.7rem; }
+  .dash-welcome { margin-bottom: 1.6rem; }
+  .admin-app .dash-stat-num { font-size: 1.5rem; }
+}
+/* ===== end visual polish — round 2 ===== */

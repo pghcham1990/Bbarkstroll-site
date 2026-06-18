@@ -16,6 +16,20 @@
   function fmtNum(s){ const d=String(s||'').replace(/\D/g,'').slice(-10); return d.length===10?`(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`:(s||'unknown'); }
   function fmtDur(n){ n=parseInt(n,10)||0; return n>=60?`${Math.floor(n/60)}m ${n%60}s`:`${n}s`; }
   function fmtTime(s){ try{ return new Date((s||'').replace(' ','T')+'Z').toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(_){ return s||''; } }
+  // Persistent call bar — keeps YOUR callback number on screen the whole call (host-aware,
+  // so each portal shows its own number) so it gets read into a voicemail.
+  var CALLBACK_BY_HOST = { brightpresencedigital:'(412) 314-8850', switchpointbackup:'(888) 609-9576', barkstroll:'(412) 776-0741' };
+  function callbackNumber(){ var h=(location.hostname||''); for (var k in CALLBACK_BY_HOST){ if (h.indexOf(k)>=0) return CALLBACK_BY_HOST[k]; } return ''; }
+  function showCallBar(name){
+    var cb=callbackNumber();
+    if (!document.getElementById('callbar-style')){
+      var st=document.createElement('style'); st.id='callbar-style';
+      st.textContent='#callbar{position:fixed;top:0;left:0;right:0;z-index:99999;background:#10212e;border-bottom:2px solid #2a6f7f;box-shadow:0 6px 24px rgba(0,0,0,.4)}#callbar .cb-in{display:flex;align-items:center;gap:12px;max-width:920px;margin:0 auto;padding:11px 16px;color:#fff;font-family:inherit}#callbar .cb-dot{width:11px;height:11px;border-radius:50%;background:#1ee9a4;box-shadow:0 0 10px #1ee9a4;flex:none;animation:cbpulse 1.1s infinite}@keyframes cbpulse{0%,100%{opacity:1}50%{opacity:.3}}#callbar .cb-main{flex:1;line-height:1.3}#callbar .cb-name{font-weight:700;font-size:.95rem}#callbar .cb-cb{font-size:.84rem;color:#cdd8ee;margin-top:1px}#callbar .cb-cb b{color:#f6b73c;font-size:1.1rem}#callbar .cb-x{background:#2a6f7f;color:#fff;border:none;border-radius:7px;padding:8px 15px;font-weight:600;cursor:pointer;flex:none}';
+      document.head.appendChild(st);
+    }
+    var bar=document.getElementById('callbar'); if(!bar){bar=document.createElement('div');bar.id='callbar';document.body.appendChild(bar);}
+    bar.innerHTML='<div class="cb-in"><span class="cb-dot"></span><div class="cb-main"><div class="cb-name">📞 Calling '+esc(name||'')+' — answer your phone</div>'+(cb?'<div class="cb-cb">📋 If you reach voicemail, leave your callback: <b>'+esc(cb)+'</b></div>':'')+'</div><button class="cb-x" onclick="document.getElementById(\'callbar\').remove()">Done</button></div>';
+  }
   function dirIcon(d){ return d==='outbound' ? '↗' : '↘'; }
 
   function renderCoaching(c){
@@ -100,7 +114,7 @@
       try {
         const coachEl = container.querySelector('#ptCoach');
         const r = await adapter.dial(num, nameEl.value.trim(), coachEl ? coachEl.checked : false);
-        if (r && r.ok) { toast('Your phone is ringing — pick up to connect'); display.value=''; nameEl.value=''; if (coachEl) coachEl.checked = false; setTimeout(refreshLog, 1500); }
+        if (r && r.ok) { var _nm=nameEl.value.trim()||fmtNum(num); showCallBar(_nm); toast('Your phone is ringing — pick up to connect'); display.value=''; nameEl.value=''; if (coachEl) coachEl.checked = false; setTimeout(refreshLog, 1500); }
         else { toast((r && r.error) || 'Call failed'); }
       } catch (_) { toast('Call service unavailable'); }
       finally { callBtn.disabled = false; callBtn.textContent = 'Call'; }

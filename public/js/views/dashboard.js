@@ -64,6 +64,7 @@ function renderEarningsWidget(data) {
     const hrsLabel = avgHrs > 0 ? ` <span class="earnings-hours">· ~${avgHrs.toFixed(1)} hr/wk</span>` : '';
     return `
       <div class="earnings-row">
+        <div class="earnings-bar" data-amt="${w.earned_completed.toFixed(0)}"></div>
         <div class="earnings-name">${label}</div>
         <div class="earnings-walks">${w.walks_completed} walk${w.walks_completed !== 1 ? 's' : ''}${hrsLabel}</div>
         <div class="earnings-amount">$${w.earned_completed.toFixed(0)}</div>
@@ -73,6 +74,7 @@ function renderEarningsWidget(data) {
   // House row
   rows += `
     <div class="earnings-row earnings-house">
+      <div class="earnings-bar" data-amt="${data.house_total_completed.toFixed(0)}"></div>
       <div class="earnings-name">🏠 Bark & Stroll</div>
       <div class="earnings-walks">${data.total_walks_completed} walk${data.total_walks_completed !== 1 ? 's' : ''}</div>
       <div class="earnings-amount">$${data.house_total_completed.toFixed(0)}</div>
@@ -95,11 +97,13 @@ function renderEarningsWidget(data) {
           <div class="earnings-table">
             ${walkers.map(w => `
               <div class="earnings-row earnings-projected">
+                <div class="earnings-bar" data-amt="${w.earned_all.toFixed(0)}"></div>
                 <div class="earnings-name">${w.name}</div>
                 <div class="earnings-walks">${w.walks_scheduled} walk${w.walks_scheduled !== 1 ? 's' : ''}</div>
                 <div class="earnings-amount">$${w.earned_all.toFixed(0)}</div>
               </div>`).join('')}
             <div class="earnings-row earnings-house earnings-projected">
+              <div class="earnings-bar" data-amt="${data.house_total_projected.toFixed(0)}"></div>
               <div class="earnings-name">🏠 Bark & Stroll</div>
               <div class="earnings-walks">${data.total_walks_all} walks</div>
               <div class="earnings-amount">$${data.house_total_projected.toFixed(0)}</div>
@@ -108,6 +112,61 @@ function renderEarningsWidget(data) {
         ` : ''}
       </div>
     </div>`;
+}
+
+// Count-up animation for the dashboard's stat numbers + earnings amounts —
+// tweens each from 0 to its rendered value (cubic ease-out). Honors reduced-motion.
+function animateDashNumbers(scope) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const root = scope || document;
+  const tween = (el, to, dur, fmt) => {
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      const e = 1 - Math.pow(1 - t, 3);
+      el.textContent = fmt(to * e);
+      if (t < 1) requestAnimationFrame(step); else el.textContent = fmt(to);
+    };
+    requestAnimationFrame(step);
+  };
+  root.querySelectorAll('.dash-stat-num').forEach((el, i) => {
+    const to = parseInt((el.textContent || '0').replace(/[^\d-]/g, ''), 10) || 0;
+    if (to <= 0) return;
+    el.textContent = '0';
+    setTimeout(() => tween(el, to, 1100, v => String(Math.round(v))), 260 + i * 90);
+  });
+  // Earnings: for each table, count the amount up AND fill the bar (scaled to the
+  // table's largest amount), in sync — the signature move from the design.
+  const amtOf = (r) => {
+    const bar = r.querySelector('.earnings-bar');
+    if (bar && bar.dataset.amt) return parseFloat(bar.dataset.amt) || 0;
+    const a = r.querySelector('.earnings-amount');
+    return a ? (parseFloat(a.textContent.replace(/[^\d.]/g, '')) || 0) : 0;
+  };
+  root.querySelectorAll('.earnings-table').forEach((table) => {
+    const rows = [...table.querySelectorAll('.earnings-row')];
+    const max = Math.max(1, ...rows.map(amtOf));
+    rows.forEach((r, i) => {
+      const amtEl = r.querySelector('.earnings-amount');
+      const barEl = r.querySelector('.earnings-bar');
+      const to = amtOf(r);
+      if (amtEl) amtEl.textContent = '$0';
+      if (barEl) barEl.style.width = '0%';
+      if (to <= 0) return;
+      setTimeout(() => {
+        const start = performance.now(), dur = 800;
+        const step = (now) => {
+          const t = Math.min(1, (now - start) / dur);
+          const e = 1 - Math.pow(1 - t, 3);
+          if (amtEl) amtEl.textContent = '$' + Math.round(to * e);
+          if (barEl) barEl.style.width = (100 * (to * e) / max).toFixed(1) + '%';
+          if (t < 1) requestAnimationFrame(step);
+          else { if (amtEl) amtEl.textContent = '$' + Math.round(to); if (barEl) barEl.style.width = (100 * to / max).toFixed(1) + '%'; }
+        };
+        requestAnimationFrame(step);
+      }, 520 + i * 70);
+    });
+  });
 }
 
 async function render_dashboard(el) {
@@ -138,6 +197,7 @@ async function render_dashboard(el) {
   const dateStr = days[now.getDay()] + ', ' + months[now.getMonth()] + ' ' + now.getDate();
 
   el.innerHTML = `
+    <div class="dash-view">
     <div class="dash-welcome">
       <p class="dash-date">${dateStr}</p>
       <h1 class="dash-greeting">${greeting}, ${esc(name)}</h1>
@@ -178,6 +238,7 @@ async function render_dashboard(el) {
     </div>
 
     ${renderEarningsWidget(earnings)}
+    </div>
   `;
 
   const container = document.getElementById('dashAppts');
@@ -194,4 +255,6 @@ async function render_dashboard(el) {
       </div>
     `).join('');
   }
+
+  animateDashNumbers(el);
 }

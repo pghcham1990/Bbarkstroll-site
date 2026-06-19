@@ -1976,3 +1976,57 @@ body {
   .admin-app .dash-stat-num { font-size: 1.5rem; }
 }
 /* ===== end visual polish — round 2 ===== */
+
+/* === Dashboard entrance + count-up animations (imported from claude.ai Design) === */
+@keyframes dashEnterUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
+@keyframes dashFloatY { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-5px); } }
+
+.dash-view .dash-welcome   { animation: dashEnterUp .55s cubic-bezier(.22,1,.36,1) both; animation-delay:.04s; }
+.dash-view .weather-widget { animation: dashEnterUp .55s cubic-bezier(.22,1,.36,1) both; animation-delay:.10s; }
+.dash-view .dash-stat      { animation: dashEnterUp .5s cubic-bezier(.22,1,.36,1) both; transition: transform .2s ease, box-shadow .2s ease; }
+.dash-view .dash-stat:nth-child(1) { animation-delay:.18s; }
+.dash-view .dash-stat:nth-child(2) { animation-delay:.26s; }
+.dash-view .dash-stat:nth-child(3) { animation-delay:.34s; }
+.dash-view .dash-stat:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(13,68,40,.12); }
+.dash-view .glass-panel    { animation: dashEnterUp .55s cubic-bezier(.22,1,.36,1) both; animation-delay:.42s; }
+.dash-view .glass-panel ~ .glass-panel { animation-delay:.52s; }
+.dash-view .empty-icon     { animation: dashFloatY 3s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-view .dash-welcome,
+  .dash-view .weather-widget,
+  .dash-view .dash-stat,
+  .dash-view .glass-panel,
+  .dash-view .empty-icon { animation: none !important; }
+}
+
+/* === Full visual restyle (admin only) — Plus Jakarta Sans, matching the claude.ai Design revision ===
+   Scoped to .admin-app so the classic-serif client/walker portals are untouched. */
+.admin-app { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
+.admin-app .detail-notes { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+/* Former DM-Serif display headings → Plus Jakarta Sans, heavier + tighter (the modern look) */
+.admin-app .topbar-title,
+.admin-app .card-title,
+.admin-app .section-title,
+.admin-app .modal-header h2,
+.admin-app .cal-nav h2,
+.admin-app .cal-day-label,
+.admin-app .stat-num,
+.admin-app .dash-greeting,
+.admin-app .glass-panel-title,
+.admin-app .dash-stat-num {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* === Earnings bars (claude.ai Design) — filling background bar per row === */
+.earnings-row { position: relative; overflow: hidden; }
+.earnings-bar {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+  z-index: 0; border-radius: inherit;
+  background: linear-gradient(90deg, rgba(20,97,58,.16), rgba(20,97,58,.03));
+}
+.earnings-house .earnings-bar { background: linear-gradient(90deg, rgba(193,154,62,.24), rgba(193,154,62,.05)); }
+.earnings-name, .earnings-walks, .earnings-amount { position: relative; z-index: 1; }
+.admin-app .earnings-amount { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; }

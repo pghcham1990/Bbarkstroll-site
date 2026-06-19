@@ -19,9 +19,10 @@ async function fetchWeather() {
 }
 
 function renderWeatherWidget(weather) {
-  if (!weather || !weather.current) {
-    return '<div class="weather-widget"><div class="weather-unavailable">Weather unavailable</div></div>';
-  }
+  // If weather can't load (offline / API hiccup / blocked on a network), render
+  // NOTHING rather than an ugly green "Weather unavailable" box — the widget just
+  // doesn't appear that load.
+  if (!weather || !weather.current) return '';
   const c = weather.current;
   const d = weather.daily;
   const desc = WMO_CODES[c.weather_code] || 'Unknown';
@@ -115,10 +116,11 @@ function renderEarningsWidget(data) {
 }
 
 // Count-up animation for the dashboard's stat numbers + earnings amounts —
-// tweens each from 0 to its rendered value (cubic ease-out). Honors reduced-motion.
+// tweens each from 0 to its rendered value (cubic ease-out). Always plays.
 function animateDashNumbers(scope) {
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const root = scope || document;
+  // The dashboard animations always play on this portal — the OS reduced-motion
+  // preference is intentionally NOT honored here (owner's call for the admin).
   const tween = (el, to, dur, fmt) => {
     const start = performance.now();
     const step = (now) => {
@@ -150,9 +152,9 @@ function animateDashNumbers(scope) {
       const amtEl = r.querySelector('.earnings-amount');
       const barEl = r.querySelector('.earnings-bar');
       const to = amtOf(r);
+      if (to <= 0) { if (barEl) barEl.style.width = '0%'; return; }
       if (amtEl) amtEl.textContent = '$0';
       if (barEl) barEl.style.width = '0%';
-      if (to <= 0) return;
       setTimeout(() => {
         const start = performance.now(), dur = 800;
         const step = (now) => {

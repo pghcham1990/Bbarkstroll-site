@@ -1825,18 +1825,8 @@ body {
 /* --- Toasts: rounder, friendlier --- */
 .toast { border-radius: 12px; }
 
-/* --- Honor reduced-motion: keep transitions calm for those who ask --- */
-@media (prefers-reduced-motion: reduce) {
-  .admin-app .card,
-  .admin-app .stat-card,
-  .dash-stat,
-  .team-card,
-  .admin-app .list-item,
-  .sidebar-link,
-  .btn,
-  .admin-app .fab,
-  .admin-app .cal-day { transition: none !important; }
-}
+/* Reduced-motion is intentionally NOT honored in this admin portal (owner's call) —
+   all transitions + animations always play regardless of the OS setting. */
 /* ===== end visual polish pass ===== */
 
 
@@ -1991,14 +1981,6 @@ body {
 .dash-view .glass-panel    { animation: dashEnterUp .55s cubic-bezier(.22,1,.36,1) both; animation-delay:.42s; }
 .dash-view .glass-panel ~ .glass-panel { animation-delay:.52s; }
 .dash-view .empty-icon     { animation: dashFloatY 3s ease-in-out infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .dash-view .dash-welcome,
-  .dash-view .weather-widget,
-  .dash-view .dash-stat,
-  .dash-view .glass-panel,
-  .dash-view .empty-icon { animation: none !important; }
-}
 
 /* === Full visual restyle (admin only) — Plus Jakarta Sans EVERYWHERE in the admin.
    Scoped to .admin-app so the classic-serif client/walker portals are untouched.

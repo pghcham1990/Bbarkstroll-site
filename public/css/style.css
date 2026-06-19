@@ -325,7 +325,20 @@ body.admin-app::after {
   gap: .75rem;
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
-.sidebar-logo { height: 44px; width: auto; object-fit: contain }
+.sidebar-logo { height: 60px; width: auto; object-fit: contain }
+/* Logo sheen sweep — matches the barkstroll.com homepage hero mark.
+   Sweeps across once, then rests fully off the badge (unlit) until the next loop. */
+.logo-sheen { position:relative; display:inline-flex; line-height:0; }
+.logo-sheen .sidebar-logo { display:block; }
+.logo-sheen::after {
+  content:""; position:absolute; inset:0; pointer-events:none;
+  -webkit-mask:url(/admin/static/bridgeville-bark-stroll-logo.png) center/contain no-repeat;
+  mask:url(/admin/static/bridgeville-bark-stroll-logo.png) center/contain no-repeat;
+  background:linear-gradient(110deg, transparent 38%, rgba(255,255,255,.85) 50%, transparent 62%);
+  background-size:300% 100%; background-repeat:no-repeat; background-position:0% 0;
+  animation:bsSheen 5s ease-in-out infinite;
+}
+@keyframes bsSheen { 0%{ background-position:0% 0; } 35%{ background-position:100% 0; } 100%{ background-position:100% 0; } }
 .sidebar-name {
   font-family: 'DM Serif Display', serif;
   font-size: 1.15rem;

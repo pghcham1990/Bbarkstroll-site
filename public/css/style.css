@@ -2000,11 +2000,13 @@ body {
   .dash-view .empty-icon { animation: none !important; }
 }
 
-/* === Full visual restyle (admin only) — Plus Jakarta Sans, matching the claude.ai Design revision ===
-   Scoped to .admin-app so the classic-serif client/walker portals are untouched. */
+/* === Full visual restyle (admin only) — Plus Jakarta Sans EVERYWHERE in the admin.
+   Scoped to .admin-app so the classic-serif client/walker portals are untouched.
+   Covers every rule that explicitly set DM Serif Display / DM Sans / Google Sans,
+   so nothing falls back to Times/Arial. === */
 .admin-app { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
-.admin-app .detail-notes { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-/* Former DM-Serif display headings → Plus Jakarta Sans, heavier + tighter (the modern look) */
+
+/* Display headings + numbers (were DM Serif Display) → heavier + tighter Plus Jakarta Sans */
 .admin-app .topbar-title,
 .admin-app .card-title,
 .admin-app .section-title,
@@ -2012,12 +2014,30 @@ body {
 .admin-app .cal-nav h2,
 .admin-app .cal-day-label,
 .admin-app .stat-num,
+.admin-app .sidebar-name,
+.admin-app .main-header-title,
 .admin-app .dash-greeting,
 .admin-app .glass-panel-title,
-.admin-app .dash-stat-num {
+.admin-app .dash-stat-num,
+.admin-app .weather-temp,
+.admin-app .spend-num,
+.admin-app .earnings-amount {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+.admin-app .earnings-amount { font-variant-numeric: tabular-nums; }
+
+/* Body text, inputs, compose (Messages) + note fields (were DM Sans / Google Sans → system/Arial) */
+.admin-app .detail-notes,
+.admin-app input,
+.admin-app textarea,
+.admin-app select,
+.admin-app [class*="compose-"],
+.admin-app .email-viewer-body,
+.admin-app .mass-filter-btn,
+.admin-app .note-input {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 /* === Earnings bars (claude.ai Design) — filling background bar per row === */

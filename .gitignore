@@ -7,3 +7,6 @@ data/
 private-archive/
 *.bundle
 barkstroll-prehistory-scrub-*.bundle
+
+# Editor/design backup artifacts
+*.bak*

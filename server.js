@@ -193,11 +193,12 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
       // Create as prospect
       const submittedOn = new Date().toLocaleDateString('en-US');
       const cityPart = city ? ' City: ' + city + '.' : '';
-      const flag = out_of_area ? '[OUT OF AREA] ' : '';
-      const notes = flag + 'Form submission ' + submittedOn + '.' + cityPart;
+      const noteText = 'Form submission ' + submittedOn + '.' + cityPart + (out_of_area ? ' (Out of service area.)' : '');
       const result = db.prepare(
-        "INSERT INTO customers (first_name, last_name, email, phone, notes, status) VALUES (?, ?, ?, ?, ?, 'prospect')"
-      ).run(first_name, last_name, email.trim(), phone || null, notes);
+        "INSERT INTO customers (first_name, last_name, email, phone, out_of_area, status) VALUES (?, ?, ?, ?, ?, 'prospect')"
+      ).run(first_name, last_name, email.trim(), phone || null, out_of_area ? 1 : 0);
+      // The submission note goes to the customer_notes timeline (the store the CRM reads), not the scalar.
+      db.prepare("INSERT INTO customer_notes (customer_id, text) VALUES (?, ?)").run(result.lastInsertRowid, noteText);
 
       // Add dogs if provided
       if (dog_names) {

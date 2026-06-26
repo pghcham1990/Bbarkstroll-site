@@ -63,6 +63,11 @@ async function render_customers(el) {
   loadCustomers();
 }
 
+// Prospect list sort: 'newest' (default — by inquiry date, newest first) or 'az' (by name).
+// Set via the pills in the Prospects header; re-runs loadCustomers so the active search is preserved.
+let _prospectSort = 'newest';
+function setProspectSort(s) { if (s !== _prospectSort) { _prospectSort = s; loadCustomers(); } }
+
 async function loadCustomers() {
   const q = document.getElementById('custSearch')?.value || '';
   const url = q ? '/customers?q=' + encodeURIComponent(q) : '/customers';
@@ -75,9 +80,24 @@ async function loadCustomers() {
     }
     // Internal placeholder rows (e.g. walker-interview scheduling) never belong in the client list.
     const visible = customers.filter(c => c.status !== 'internal');
-    const active = visible.filter(c => c.status !== 'prospect')
+    const active = visible.filter(isActive)
       .sort((a, b) => (b.lifetime_revenue || 0) - (a.lifetime_revenue || 0));
     const prospects = visible.filter(c => c.status === 'prospect');
+    // Anything visible that is neither active nor prospect (i.e. 'inactive') gets its own bucket
+    // so an inactive client is still LISTED, not silently dropped from the view. (0 live today.)
+    const inactive = visible.filter(c => !isActive(c) && c.status !== 'prospect');
+    // Sort prospects per the header pills. created_at is 'YYYY-MM-DD HH:MM:SS', so a string
+    // compare is chronological; newest first by default, name (last, first) for A→Z.
+    if (_prospectSort === 'az') {
+      prospects.sort((a, b) =>
+        ((a.last_name || '') + ' ' + (a.first_name || '')).toLowerCase()
+          .localeCompare(((b.last_name || '') + ' ' + (b.first_name || '')).toLowerCase()));
+    } else {
+      prospects.sort((a, b) => {
+        const at = a.created_at || '', bt = b.created_at || '';
+        return at === bt ? (b.id || 0) - (a.id || 0) : bt.localeCompare(at);
+      });
+    }
 
     function renderCustomerItem(c) {
       const isProspect = c.status === 'prospect';
@@ -164,8 +184,18 @@ async function loadCustomers() {
     let html = '';
     if (active.length) html += active.map(renderCustomerItem).join('');
     if (prospects.length) {
-      html += '<div class="prospects-label">Prospects</div>';
+      const sortPill = (key, label) =>
+        '<button type="button" class="sort-pill' + (_prospectSort === key ? ' active' : '') +
+        '" onclick="setProspectSort(\'' + key + '\')">' + label + '</button>';
+      html += '<div class="prospects-head">'
+        + '<div class="prospects-label">Prospects</div>'
+        + '<div class="prospects-sort">' + sortPill('newest', 'Newest → Oldest') + sortPill('az', 'A → Z') + '</div>'
+        + '</div>';
       html += prospects.map(renderCustomerItem).join('');
+    }
+    if (inactive.length) {
+      html += '<div class="prospects-head"><div class="prospects-label">Inactive</div></div>';
+      html += inactive.map(renderCustomerItem).join('');
     }
     container.innerHTML = html;
     if (_expandedCustomer) toggleCustomer(_expandedCustomer, true);
@@ -686,38 +716,85 @@ async function loadEmailHistory(customerId, email) {
   } catch (e) { /* silent */ }
 }
 
+// Customer activity = notes + the call ledger (recordings/transcripts/coaching/outcome) in ONE
+// chronological stream, from /customers/:id/activity. Calls were previously invisible on the card.
 async function loadNotes(customerId) {
   const container = document.getElementById('notesList-' + customerId);
   if (!container) return;
   try {
-    const notes = await api('/customers/' + customerId + '/notes');
-    if (!notes.length) {
-      container.innerHTML = '<div style="font-size:.75rem;color:var(--text-soft);padding:.3rem 0">No notes yet</div>';
+    const items = await api('/customers/' + customerId + '/activity');
+    if (!items.length) {
+      container.innerHTML = '<div style="font-size:.75rem;color:var(--text-soft);padding:.3rem 0">No activity yet</div>';
       return;
     }
-    container.innerHTML = notes.map(n => {
-      let attachHtml = '';
-      if (n.attachment_file) {
-        const url = '/admin/api/attachments/' + encodeURIComponent(n.attachment_file);
-        const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(n.attachment_name || '');
-        if (isImage) {
-          attachHtml = '<div class="note-attachment"><img src="' + url + '" alt="' + esc(n.attachment_name) + '" class="note-image" onclick="window.open(this.src)"></div>';
-        } else {
-          attachHtml = '<div class="note-attachment"><a href="' + url + '" target="_blank" class="note-file-link">📎 ' + esc(n.attachment_name) + '</a></div>';
-        }
-      }
-      return `
-        <div class="note-entry">
-          <div class="note-header">
-            <span class="note-date">${fmtDate(n.created_at)}</span>
-            <button class="note-delete" onclick="deleteNote(${n.id}, ${customerId})" title="Delete note">&times;</button>
-          </div>
-          ${n.text ? '<div class="note-text">' + esc(n.text) + '</div>' : ''}
-          ${attachHtml}
-        </div>
-      `;
-    }).join('');
+    container.innerHTML = items.map(it =>
+        it.kind === 'call'      ? renderCallEntry(it)
+      : it.kind === 'email_out' ? renderEmailOutEntry(it)
+      : it.kind === 'email_in'  ? renderEmailInEntry(it)
+      : renderNoteEntry(it, customerId)).join('');
   } catch (e) { /* silent */ }
+}
+function renderNoteEntry(n, customerId) {
+  let attachHtml = '';
+  if (n.attachment_file) {
+    const url = '/admin/api/attachments/' + encodeURIComponent(n.attachment_file);
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(n.attachment_name || '');
+    attachHtml = isImage
+      ? '<div class="note-attachment"><img src="' + url + '" alt="' + esc(n.attachment_name) + '" class="note-image" onclick="window.open(this.src)"></div>'
+      : '<div class="note-attachment"><a href="' + url + '" target="_blank" class="note-file-link">📎 ' + esc(n.attachment_name) + '</a></div>';
+  }
+  return `
+    <div class="note-entry">
+      <div class="note-header">
+        <span class="note-date">${fmtDate(n.ts)}</span>
+        <button class="note-delete" onclick="deleteNote(${n.id}, ${customerId})" title="Delete note">&times;</button>
+      </div>
+      ${n.text ? '<div class="note-text">' + esc(n.text) + '</div>' : ''}
+      ${attachHtml}
+    </div>
+  `;
+}
+function renderCallEntry(c) {
+  const dir = c.direction === 'inbound' ? '📲 Inbound call' : '📞 Outbound call';
+  const bits = [];
+  if (c.status) bits.push(esc(c.status));
+  if (c.duration_sec) bits.push(c.duration_sec + 's');
+  const sub = bits.length ? ' · ' + bits.join(' · ') : '';
+  const extras = [];
+  if (c.outcome) extras.push('<div class="note-text">' + esc(c.outcome) + '</div>');
+  if (c.voicemail_transcript) extras.push('<div class="note-text">🎙 Voicemail: "' + esc(c.voicemail_transcript) + '"</div>');
+  if (c.coach_summary) extras.push('<div class="note-text" style="color:var(--text-soft)">🎙️ Coaching: ' + esc(c.coach_summary) + '</div>');
+  if (c.has_recording) extras.push('<div class="note-text" style="color:var(--text-soft)">🎧 Recording on file</div>');
+  else if (c.has_transcript) extras.push('<div class="note-text" style="color:var(--text-soft)">📝 Transcript on file</div>');
+  return `
+    <div class="note-entry" style="border-left:3px solid var(--gold,#c4a44e)">
+      <div class="note-header"><span class="note-date">📞 ${fmtDate(c.ts)}</span></div>
+      <div class="note-text"><b>${dir}</b>${sub}</div>
+      ${extras.join('')}
+    </div>
+  `;
+}
+function renderEmailOutEntry(e) {
+  return `
+    <div class="note-entry" style="border-left:3px solid var(--blue,#5b8def)">
+      <div class="note-header"><span class="note-date">📧 ${fmtDate(e.ts)}</span></div>
+      <div class="note-text"><b>↗ ${esc(e.label)}</b>${e.to ? ' · to ' + esc(e.to) : ''}</div>
+    </div>
+  `;
+}
+function renderEmailInEntry(m) {
+  const isBounce = m.classification === 'bounce_soft';
+  const head = isBounce ? '⚠ Email soft-bounced'
+    : m.classification === 'auto_reply' ? '↩ Auto-reply'
+    : '↩ Reply received';
+  return `
+    <div class="note-entry" style="border-left:3px solid ${isBounce ? 'var(--warn,#e0a800)' : 'var(--green,#2e9e5b)'}">
+      <div class="note-header"><span class="note-date">📨 ${fmtDate(m.ts)}</span></div>
+      <div class="note-text"><b>${head}</b>${m.from ? ' · from ' + esc(m.from) : ''}</div>
+      ${m.subject ? '<div class="note-text">' + esc(m.subject) + '</div>' : ''}
+      ${m.snippet ? '<div class="note-text" style="color:var(--text-soft)">' + esc(m.snippet) + '</div>' : ''}
+    </div>
+  `;
 }
 
 async function addNote(customerId) {
@@ -793,7 +870,7 @@ async function openMassEmail() {
     const withEmail = customers.filter(c => c.email);
     if (!withEmail.length) { toast('No clients have email addresses', 'err'); return; }
 
-    const active = withEmail.filter(c => c.status === 'active');
+    const active = withEmail.filter(isActive);
     const prospects = withEmail.filter(c => c.status === 'prospect');
     const inactive = withEmail.filter(c => c.status === 'inactive');
 

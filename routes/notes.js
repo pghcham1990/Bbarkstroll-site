@@ -71,6 +71,76 @@ router.get('/customers/:id/notes', (req, res) => {
   }
 });
 
+// Unified activity timeline: customer_notes + the call ledger (call_log — recordings/transcripts/
+// coaching/outcome) merged into ONE chronological stream. The call ledger was previously invisible on
+// the customer card (only the global Phone tab showed it). Auto-generated call-mirror notes are excluded
+// so a single call isn't shown 2-3 times — the call_log row is the single source for calls.
+router.get('/customers/:id/activity', (req, res) => {
+  try {
+    const id = req.params.id;
+    const cust = db.prepare('SELECT email FROM customers WHERE id = ?').get(id);
+    const email = cust && cust.email ? cust.email : null;
+    const notes = db.prepare(
+      `SELECT id, text, attachment_file, attachment_name, created_at FROM customer_notes
+        WHERE customer_id = ?
+          AND text NOT LIKE 'Outbound call placed to%'
+          AND text NOT LIKE 'Created automatically from an inbound%'`
+    ).all(id);
+    const calls = db.prepare(
+      `SELECT id, call_sid, direction, status, duration_sec, voicemail_transcript, outcome,
+              recording_path, coaching, coach_status, started_at
+         FROM call_log WHERE contact_table = 'customers' AND contact_id = ?`
+    ).all(id);
+    // Email streams key by the client's EMAIL (no customer_id on these tables).
+    // email_sends: client-facing roles ONLY (owner/employee BCC copies go to one internal address).
+    // inbox_events: inbound/replies/soft-bounces. bounce_hard EXCLUDED — inbox-tick.js already writes
+    //   a customer_notes row for hard bounces (already in this stream → would double-count).
+    let outboundMail = [], inboundMail = [];
+    if (email) {
+      outboundMail = db.prepare(
+        `SELECT id, scope_type, recipient_role, recipient_email, sent_at
+           FROM email_sends
+          WHERE recipient_email = ? COLLATE NOCASE
+            AND recipient_role IN ('customer','client','prospect')`
+      ).all(email);
+      inboundMail = db.prepare(
+        `SELECT id, from_email, subject, snippet, classification, received_at, created_at
+           FROM inbox_events
+          WHERE from_email = ? COLLATE NOCASE
+            AND classification IN ('inbound','human_reply','auto_reply','bounce_soft')`
+      ).all(email);
+    }
+    const items = [];
+    for (const n of notes) items.push({ kind: 'note', ts: n.created_at, id: n.id, text: n.text,
+      attachment_file: n.attachment_file, attachment_name: n.attachment_name });
+    for (const c of calls) {
+      let coachSummary = '';
+      try { const co = JSON.parse(c.coaching || 'null'); if (co && co.summary) coachSummary = String(co.summary); } catch (_) {}
+      items.push({ kind: 'call', ts: c.started_at, id: c.id, call_sid: c.call_sid,
+        direction: c.direction, status: c.status, duration_sec: c.duration_sec, outcome: c.outcome,
+        voicemail_transcript: c.voicemail_transcript, coach_summary: coachSummary,
+        has_recording: !!c.recording_path,
+        has_transcript: c.coach_status === 'coached' || c.coach_status === 'summarized' });
+    }
+    for (const e of outboundMail) {
+      const label = e.scope_type === 'appt' ? 'Appointment confirmation'
+        : (e.scope_type === 'checkin' || e.scope_type === 'prospect_checkin_2026_05_28') ? 'Check-in email'
+        : e.scope_type === 'batch' ? 'Batch email' : 'Confirmation email';
+      items.push({ kind: 'email_out', ts: e.sent_at, id: e.id, label, to: e.recipient_email });
+    }
+    for (const m of inboundMail) {
+      items.push({ kind: 'email_in', ts: m.received_at || m.created_at, id: m.id,
+        classification: m.classification, subject: m.subject, snippet: m.snippet, from: m.from_email });
+    }
+    // inbox_events.received_at is ISO-Z; notes/call_log/email_sends are SQLite 'YYYY-MM-DD HH:MM:SS'.
+    // localeCompare mis-orders mixed formats; Date.parse normalizes both (V8 parses the space form).
+    items.sort((a, b) => (Date.parse(b.ts) || 0) - (Date.parse(a.ts) || 0));   // newest first
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Add a note (with optional attachment)
 router.post('/customers/:id/notes', upload.single('attachment'), (req, res) => {
   try {

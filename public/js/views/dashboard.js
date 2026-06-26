@@ -225,7 +225,7 @@ async function render_dashboard(el) {
       <div class="dash-stat">
         <div class="dash-stat-icon blue">👥</div>
         <div>
-          <div class="dash-stat-num">${customers.length}</div>
+          <div class="dash-stat-num">${customers.filter(isActive).length}</div>
           <div class="dash-stat-label">Active Clients</div>
         </div>
       </div>

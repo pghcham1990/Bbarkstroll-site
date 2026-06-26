@@ -111,6 +111,15 @@ function esc(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Single definition of an "active client" — used by the dashboard stat, the Clients list,
+// and Mass Email so all three agree. Active = a real client: status === 'active'. Prospects,
+// 'internal' placeholders, and (future) 'inactive' are excluded. No 'inactive' rows exist in
+// live data yet; this is forward-safe. Inactive clients are LISTED separately, never hidden
+// (see customers.js list view), and excluded from mass email (the modal already buckets them).
+function isActive(c) {
+  return !!c && (c.status || 'active') === 'active';
+}
+
 /* --- Sidebar toggle (mobile) --- */
 function toggleSidebar(show) {
   const sidebar = document.getElementById('sidebar');

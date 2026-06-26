@@ -23,7 +23,7 @@ db.prepare(`CREATE TABLE IF NOT EXISTS customer_gifts (
 //   dog_count        — count of dogs on file
 //   note_count       — count of customer_notes timeline entries (used to infer "replied" for prospects)
 //   last_service_at  — most recent past appointment (status != cancelled, start_time <= now); null = never used us
-//   out_of_area      — 1 if prospect notes carry the [OUT OF AREA] tag written by the public contact form
+//   out_of_area      — real customers.out_of_area column (1 = outside service area), set by the contact form
 router.get('/customers', (req, res) => {
   try {
     const q = req.query.q;
@@ -37,7 +37,7 @@ router.get('/customers', (req, res) => {
         COALESCE(c.rate, 0) * COUNT(DISTINCT CASE WHEN a.status IN ('completed','scheduled') AND COALESCE(sv.name,'') <> 'Meet & Greet' THEN a.id END) AS lifetime_revenue,
         MAX(CASE WHEN a.status != 'cancelled' AND a.start_time <= datetime('now') THEN a.start_time END) AS last_service_at,
         (SELECT COUNT(*) FROM customer_gifts g WHERE g.customer_id = c.id) AS gifts_given,
-        CASE WHEN c.notes LIKE '[OUT OF AREA]%' THEN 1 ELSE 0 END AS out_of_area,
+        COALESCE(c.out_of_area, 0) AS out_of_area,
         (SELECT '/gallery/img/' || thumb_filename FROM gallery_photos WHERE id = c.avatar_photo_id) AS avatar_url
       FROM customers c
       LEFT JOIN dogs d ON d.customer_id = c.id
@@ -117,9 +117,11 @@ router.post('/customers', (req, res) => {
   try {
     const { first_name, last_name, email, phone, address, notes, status, rate } = req.body;
     if (!first_name || !last_name) return res.status(400).json({ error: 'First and last name required' });
+    // Notes live in the customer_notes timeline, never the scalar customers.notes column (single source).
     const result = db.prepare(
-      'INSERT INTO customers (first_name, last_name, email, phone, address, notes, status, rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(first_name, last_name, email || null, phone || null, address || null, notes || null, status || 'active', rate ? parseFloat(rate) : null);
+      'INSERT INTO customers (first_name, last_name, email, phone, address, status, rate) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(first_name, last_name, email || null, phone || null, address || null, status || 'active', rate ? parseFloat(rate) : null);
+    if (notes && String(notes).trim()) db.prepare('INSERT INTO customer_notes (customer_id, text) VALUES (?, ?)').run(result.lastInsertRowid, String(notes).trim());
     res.json({ ok: true, id: result.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -131,9 +133,18 @@ router.put('/customers/:id', (req, res) => {
   try {
     const { first_name, last_name, email, phone, address, notes, status, rate } = req.body;
     if (!first_name || !last_name) return res.status(400).json({ error: 'First and last name required' });
+    // Notes go to the customer_notes timeline, never the scalar column (single source of truth).
+    const prev = db.prepare('SELECT status FROM customers WHERE id = ?').get(req.params.id);
+    const newStatus = status || 'active';
     db.prepare(
-      "UPDATE customers SET first_name=?, last_name=?, email=?, phone=?, address=?, notes=?, status=?, rate=?, updated_at=datetime('now') WHERE id=?"
-    ).run(first_name, last_name, email || null, phone || null, address || null, notes || null, status || 'active', rate ? parseFloat(rate) : null, req.params.id);
+      "UPDATE customers SET first_name=?, last_name=?, email=?, phone=?, address=?, status=?, rate=?, updated_at=datetime('now') WHERE id=?"
+    ).run(first_name, last_name, email || null, phone || null, address || null, newStatus, rate ? parseFloat(rate) : null, req.params.id);
+    // Single source of truth for status history: a status change leaves a trail entry on the timeline.
+    if (prev && prev.status && prev.status !== newStatus) {
+      db.prepare('INSERT INTO customer_notes (customer_id, text) VALUES (?, ?)')
+        .run(req.params.id, `Status changed: ${prev.status} → ${newStatus}.`);
+    }
+    if (notes && String(notes).trim()) db.prepare('INSERT INTO customer_notes (customer_id, text) VALUES (?, ?)').run(req.params.id, String(notes).trim());
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

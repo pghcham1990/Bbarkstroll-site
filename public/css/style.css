@@ -645,6 +645,15 @@ body.admin-app::after {
   color: var(--gold);
 }
 
+/* Prospects header + sort pills (Newest → Oldest / A → Z) */
+.prospects-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:1rem;margin-bottom:.4rem;flex-wrap:wrap}
+.prospects-head .prospects-label{margin-top:0;margin-bottom:0}
+.prospects-sort{display:flex;gap:6px;flex-wrap:wrap}
+.sort-pill{background:#f1f3f4;border:1px solid #dadce0;border-radius:16px;padding:4px 12px;font-size:.74rem;font-family:'DM Sans',sans-serif;color:#5f6368;cursor:pointer;transition:all .15s;white-space:nowrap}
+.sort-pill:hover{background:#e8eaed}
+.sort-pill.active{background:rgba(196,164,78,0.16);border-color:var(--gold);color:#92700c;font-weight:600}
+.admin-app .sort-pill.active{color:var(--gold)}
+
 /* Modal */
 .admin-app .modal-overlay {
   background: rgba(0,0,0,0.55);
